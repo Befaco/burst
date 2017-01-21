@@ -30,6 +30,7 @@
 #include <ClickEncoder.h>
 #include <TimerOne.h>
 #include <EEPROM.h>
+#include "DebugUtils.h"
 
 ///////////////// PIN DEFINITIONS
 
@@ -490,8 +491,3 @@ void loop() {
     }
   }
 }
-
-
-
-
-
