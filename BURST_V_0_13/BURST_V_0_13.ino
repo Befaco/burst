@@ -12,7 +12,7 @@
   This calculation uses float, known as the evil datatype in terms of processing consume. Another way to do that?
 
   The resync doesn't work properly with the combination of :
-  - Distribution   o     o    o   o  o oo 
+  - Distribution   o     o    o   o  o oo
   - Small amount of repetitions (depending on tempo but 8 7 or less; as lower tempo, the amount of repetitions where we have de-sync is higher)
 
   Testing the module we noticed that an attenuator in the quantity input could be very useful.
@@ -37,36 +37,31 @@
 
 ////// ANALOG INS
 
-const int cv_time_div_mult = A0;
-const int cv_prob = A1;
-const int cv_quantity = A2;
-const int cv_distribution = A3;
-
+#define CV_DIVISIONS    A0
+#define CV_PROBABILITY  A1
+#define CV_QUANTITY     A2
+#define CV_DISTRIBUTION A3
 
 ////// DIGITAL INS
-const int cycle_switch = A4;
-const int cycle_in = A5;
-const int ping_in = 2;
-const int trigger_in = 8;
-const int trigger_button = 11;
 
-const int encoder_button = 3;
-const int encoder_1 = 4;
-const int encoder_2 = 5;
+#define CYCLE_SWITCH    A4
+#define CYCLE_STATE     A5
 
+#define PING_STATE      2
+#define PING_BUTTON     3
+#define ENCODER_1       4
+#define ENCODER_2       5
+#define TRIGGER_STATE   8
+#define TRIGGER_BUTTON  11
 
 ////// DIGITAL OUTS
 
-const int eoc_led = 0;
-const int out_led = 1;
+#define EOC_LED         0
+#define OUT_LED         1
+#define OUT_STATE       7
+#define EOC_STATE       9
 
 const int led_pin[4] = { 12, 13, 10, 6 };
-
-const int out = 7;
-
-const int eoc = 9;
-
-
 
 ////// Encoder
 
@@ -98,9 +93,9 @@ unsigned long repetition_raise_start = 0;       /// the time when the previous r
 
 byte repetition_counter = 0;            /// the current repetition number since the burst has started
 
-unsigned long repetition_time = 0;               /// the difference between previous repetition time and current repetition time. the difference between one repetition and the next one
-unsigned long repetition_time_new = 0;           /// the position of the new repetition inside the time window
-unsigned long repetition_time_old = 0;           /// the position of the previous repetition inside the time window
+unsigned long elapsed_time_since_prev_repetition = 0;               /// the difference between previous repetition time and current repetition time. the difference between one repetition and the next one
+unsigned long elapsed_time_since_prev_repetition_new = 0;           /// the position of the new repetition inside the time window
+unsigned long elapsed_time_since_prev_repetition_old = 0;           /// the position of the previous repetition inside the time window
 
 unsigned long led_quantity_time = 0;        /// time counter used to turn off the led when we are chosing the number of repetitions with the encoder
 
@@ -108,19 +103,20 @@ unsigned long eoc_counter = 0;              /// a counter to turn off the eoc le
 
 
 //    divisions
-int divisions  ;                            //// value of the time division or the time multiplier
-int divisions_old ;
+int divisions;                            //// value of the time division or the time multiplier
+int divisions_old;
 int divisions_pot;
 int sub_division_counter = 0;
 
 ////// Repetitions
+
+#define MAX_REPETITIONS 32                  /// max number of repetitions
 
 byte repetitions = 0;                       /// number of repetitions
 byte repetitions_old = 0;
 byte repetitions_temp = 0;                  /// temporal value that adds the number of repetitions in the encoder and the number number added by the CV quantity input
 byte repetitions_encoder = 0;
 byte repetitions_encoder_temp = 0;
-byte max_repetitions = 32;                  /// max number of repetitions
 unsigned long position_temp = 0;
 
 
@@ -136,11 +132,12 @@ float distribution_index_array [9];       /// used to calculate the position of 
 int curve = 5;                            /// the curved we apply to the  pow function to calculate the distribution of repetitions
 
 //// Trigger
-bool trigger_button_state = 0;           /// the trigger button
-bool trigger_in_state = 0;               /// the trigger input
-bool trigger = 0;                        /// the result of both trigger button and trigger input
-bool trigger_first_pressed = 0;          /// a falg to know if it is the first time we ahve pressed a trigger ( after release it is HIGH again)
+uint8_t trigger_button_state = LOW;           /// the trigger button
+bool trigger_cv_state = 0;               /// the trigger input
+bool triggered = false;                        /// the result of both trigger button and trigger input
+bool trigger_ready = true;          /// a falg to know if it is the first time we ahve pressed a trigger ( after release it is HIGH again)
 long trigger_difference = 0;            /// the time difference between the trigger and the ping
+bool trigger_first_pressed = 0;
 float trigger_dif_proportional = 0;
 //// Cycle
 bool cycle_switch_state = 0;             /// the cycle switch
@@ -172,47 +169,40 @@ byte max_taps = 0;                                  /// the number of tempo_tics
 byte tap_index = 0;                                 /// and index used to know the last tempo_tic stored in the tap_tempo_array[]
 unsigned long averaged_taps = 0;                    /// the sum of all tempo_tic differences
 
-
-
-
-
-
-
-
 void setup() {
 
   //// remove to activate eoc_led and out_led
-  //Serial.begin(115200);
+  //Serial.begin(9600);
   //Serial.println("HOLA");
 
   /// Encoder
-  encoder = new ClickEncoder(encoder_2, encoder_1, 3);
+  encoder = new ClickEncoder(ENCODER_2, ENCODER_1, 3);
 
-  Timer1.initialize(1000);
-  Timer1.attachInterrupt(timerIsr);
+  Timer1.initialize(1000); // maybe 100u?
+  Timer1.attachInterrupt(timerIsr); // why do we only service the encoder here, actually we should get the values of all the interface elements. the variables we set need to be 'volatile' and we need to disabled interrupts when reading them (we can just copy them and then re-enable interrupts).
 
   // Encoder pins
-  pinMode (encoder_1, INPUT_PULLUP);
-  pinMode (encoder_2, INPUT_PULLUP);
+  pinMode (ENCODER_1, INPUT_PULLUP);
+  pinMode (ENCODER_2, INPUT_PULLUP);
 
 
-  pinMode (cycle_switch, INPUT_PULLUP);
-  pinMode (cycle_in, INPUT_PULLUP);
-  pinMode (ping_in, INPUT_PULLUP);
-  pinMode (trigger_in, INPUT_PULLUP);
-  pinMode (trigger_button, INPUT_PULLUP);
-  pinMode (encoder_button, INPUT_PULLUP);
+  pinMode (CYCLE_SWITCH, INPUT_PULLUP);
+  pinMode (CYCLE_STATE, INPUT_PULLUP);
+  pinMode (PING_STATE, INPUT_PULLUP);
+  pinMode (TRIGGER_STATE, INPUT_PULLUP);
+  pinMode (TRIGGER_BUTTON, INPUT_PULLUP);
+  pinMode (PING_BUTTON, INPUT_PULLUP);
 
 
 
-  pinMode (eoc_led, OUTPUT);
-  pinMode (out_led, OUTPUT);
+  pinMode (EOC_LED, OUTPUT);
+  pinMode (OUT_LED, OUTPUT);
 
-  pinMode (out, OUTPUT);
-  digitalWrite(out, HIGH);
+  pinMode (OUT_STATE, OUTPUT);
+  digitalWrite(OUT_STATE, HIGH);
 
-  pinMode (eoc, OUTPUT);
-  digitalWrite(eoc, HIGH);
+  pinMode (EOC_STATE, OUTPUT);
+  digitalWrite(EOC_STATE, HIGH);
 
   create_distribution_index();
 
@@ -245,10 +235,7 @@ void setup() {
 
 void loop() {
 
-
-
-
-  if ((trigger == HIGH) && (trigger_first_pressed == HIGH))  {    ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
+  if ((triggered == HIGH) && (trigger_first_pressed == HIGH))  {    ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
     if (repetitions_encoder_temp != repetitions_encoder) {
       repetitions_encoder = repetitions_encoder_temp;
       EEPROM.write(4, repetitions_encoder_temp);
@@ -264,7 +251,7 @@ void loop() {
     start_burst_init();
     trigger_difference = burst_time_start - tempo_tic_temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
     trigger_dif_proportional = (float)master_clock_temp / (float)trigger_difference;
-    trigger_first_pressed = LOW;
+    trigger_ready = false;
   }
 
   calculate_clock();          /// we read the ping in and the encoder button to get : master clock, clock divided and time_portions
@@ -299,8 +286,8 @@ void loop() {
 
 
     if (current_time >=  eoc_counter + 25) {                                 //////// CHECK EOC OUTPUT AND LED
-      digitalWrite(eoc_led, LOW);
-      digitalWrite(eoc, HIGH);
+      digitalWrite(EOC_LED, LOW);
+      digitalWrite(EOC_STATE, HIGH);
     }
 
     if ((current_time >= led_quantity_time + 25) && (no_more_bursts)) {     //////// ONCE THE NUMBER OF REPETITIONS IS CHOSEN LEDS LIGHT UP WITH THE CURRENT REPETITION
@@ -314,8 +301,8 @@ void loop() {
       if ( current_time >= burst_time_start + burst_time_accu + 2) {      /////  WE COUNT THE TIME DURING THE PULSE IS HIGH
 
         output_state = !output_state;
-        digitalWrite(out, !(output_state * no_more_bursts));
-        digitalWrite(out_led, (output_state * no_more_bursts));
+        digitalWrite(OUT_STATE, !(output_state * no_more_bursts));
+        digitalWrite(OUT_LED, (output_state * no_more_bursts));
         random_dif = random_pot - random(1023);
         if (( first_burst == HIGH ) && (random_dif <= 0) && trigger_button_state)  {   //// WE DECIDE IF THE BURST WILL OCCUR OR NOT DEPENDING ON PROBABILITY
           no_more_bursts = LOW;
@@ -328,33 +315,33 @@ void loop() {
     current_time = millis();
     // pulse up - burst time
     if ( (output_state == LOW) && (burst_started == HIGH) ) {
-      if ( current_time >= (burst_time_start + repetition_time + burst_time_accu) ) { ///// WE COUNT THE TIME TO THE NEXT PULSE
+      if ( current_time >= (burst_time_start + elapsed_time_since_prev_repetition + burst_time_accu) ) { ///// WE COUNT THE TIME TO THE NEXT PULSE
         if (repetition_counter < repetitions - 1) {  /// WE CHECK IF IT IS NOT THE LAST REPETITION
           output_state = !output_state;
-          digitalWrite(out, !(output_state * no_more_bursts));
-          digitalWrite(out_led, (output_state * no_more_bursts));
-          burst_time_accu += repetition_time;
+          digitalWrite(OUT_STATE, !(output_state * no_more_bursts));
+          digitalWrite(OUT_LED, (output_state * no_more_bursts));
+          burst_time_accu += elapsed_time_since_prev_repetition;
           repetition_counter++;
           if (repetition_counter != repetitions - 1 ) {     /// WE CALCULATE THE TIME FOR THE NEXT PULSE
             switch ( distribution_sign ) {
               case 1:
-                repetition_time_old = repetition_time_new;
-                repetition_time_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetition_counter + 1), distribution);
-                repetition_time = repetition_time_new - repetition_time_old;
+                elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
+                elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetition_counter + 1), distribution);
+                elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new - elapsed_time_since_prev_repetition_old;
                 break;
               case 0:
                 //if (repetition_counter == repetitions - 1 ) {
-                repetition_time_old = repetition_time_new;
+                elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
                 position_temp = repetitions - repetition_counter - 2;
                 if (position_temp > 0) {
-                  repetition_time_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * position_temp, distribution);
-                  repetition_time = repetition_time_old - repetition_time_new;
+                  elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * position_temp, distribution);
+                  elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
                 }
                 break;
               case 2:
-                repetition_time_old = repetition_time_new;
-                repetition_time_new = time_portions *  (repetition_counter + 1);
-                repetition_time = repetition_time_new - repetition_time_old;
+                elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
+                elapsed_time_since_prev_repetition_new = time_portions *  (repetition_counter + 1);
+                elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new - elapsed_time_since_prev_repetition_old;
                 break;
             }
           }
@@ -393,8 +380,8 @@ void loop() {
               break;
           }
           resync = HIGH;
-          digitalWrite(eoc_led, HIGH);
-          digitalWrite(eoc, LOW);
+          digitalWrite(EOC_LED, HIGH);
+          digitalWrite(EOC_STATE, LOW);
           eoc_counter = current_time;
           no_more_bursts = HIGH;
           burst_started = LOW;
@@ -420,8 +407,8 @@ void loop() {
   else {                                                                    ////// CYCLE OFF
 
     if (current_time >=  eoc_counter + 90) {
-      digitalWrite(eoc_led, LOW);
-      digitalWrite(eoc, HIGH);
+      digitalWrite(EOC_LED, LOW);
+      digitalWrite(EOC_STATE, HIGH);
     }
 
     if ((current_time >= led_quantity_time + 250) && (no_more_bursts)) {
@@ -433,10 +420,10 @@ void loop() {
 
     // pulse down
     if ( (output_state == HIGH) && (burst_started == HIGH) ) {
-      if ( current_time >=  repetition_time_old + 2) {
+      if ( current_time >=  elapsed_time_since_prev_repetition_old + 2) {
         output_state = !output_state;
-        digitalWrite(out, !(output_state * no_more_bursts));
-        digitalWrite(out_led, (output_state * no_more_bursts));
+        digitalWrite(OUT_STATE, !(output_state * no_more_bursts));
+        digitalWrite(OUT_LED, (output_state * no_more_bursts));
         random_dif = random_pot - random(1023);
         if (( first_burst == HIGH ) && (random_dif <= 0) && trigger_button_state) {
           no_more_bursts = LOW;
@@ -447,38 +434,38 @@ void loop() {
 
     // pulse up - burst time
     if ( (output_state == LOW) && (burst_started == HIGH) ) {
-      if ( current_time >= (burst_time_start + repetition_time + burst_time_accu) ) {
+      if ( current_time >= (burst_time_start + elapsed_time_since_prev_repetition + burst_time_accu) ) {
         resync = HIGH;
         if (repetition_counter < repetitions - 1) {
           output_state = !output_state;
-          digitalWrite(out, !(output_state * no_more_bursts));
-          digitalWrite(out_led, (output_state * no_more_bursts));
-          repetition_time_old = current_time;
-          burst_time_accu += repetition_time;
+          digitalWrite(OUT_STATE, !(output_state * no_more_bursts));
+          digitalWrite(OUT_LED, (output_state * no_more_bursts));
+          elapsed_time_since_prev_repetition_old = current_time;
+          burst_time_accu += elapsed_time_since_prev_repetition;
           repetition_counter++;
 
           switch ( distribution_sign ) {
             case 1:
-              repetition_time_old = repetition_time_new;
-              repetition_time_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetition_counter + 1), distribution);
-              repetition_time = repetition_time_new - repetition_time_old;
+              elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
+              elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetition_counter + 1), distribution);
+              elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new - elapsed_time_since_prev_repetition_old;
               break;
             case 0:
               //if (repetition_counter == repetitions - 1 ) {
-              repetition_time_old = repetition_time_new;
-              repetition_time_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetitions - repetition_counter - 2), distribution);
-              repetition_time = repetition_time_old - repetition_time_new;
+              elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
+              elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetitions - repetition_counter - 2), distribution);
+              elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
               break;
             case 2:
-              repetition_time_old = repetition_time_new;
-              repetition_time_new = time_portions *  (repetition_counter + 1);
-              repetition_time = repetition_time_new - repetition_time_old;
+              elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
+              elapsed_time_since_prev_repetition_new = time_portions *  (repetition_counter + 1);
+              elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new - elapsed_time_since_prev_repetition_old;
               break;
           }
         }
         else {
-          digitalWrite(eoc_led, HIGH);
-          digitalWrite(eoc, LOW);
+          digitalWrite(EOC_LED, HIGH);
+          digitalWrite(EOC_STATE, LOW);
           eoc_counter = current_time;
           no_more_bursts = HIGH;
           burst_started = LOW;

@@ -3,14 +3,14 @@ void calculate_clock() {
   ////  Read the encoder button state
 
 
-  if (digitalRead(encoder_button) == 0 ) {
+  if (digitalRead(PING_BUTTON) == 0 ) {
     bitWrite(encoder_button_state, 0, 1);
   }
   else {
     bitWrite(encoder_button_state, 0, 0);
   }
   /// Read the ping input state
-  if (digitalRead(ping_in) == 0 ) {
+  if (digitalRead(PING_STATE) == 0 ) {
     bitWrite(ping_in_state, 0, 1);
   }
   else {
@@ -62,40 +62,40 @@ void calculate_clock() {
 
 
 void read_trigger() {
-  trigger_button_state = digitalRead(trigger_button);
-  trigger_in_state = digitalRead(trigger_in);
-  trigger = !(trigger_button_state && trigger_in_state);
-  if (trigger == LOW) trigger_first_pressed = HIGH;
+  trigger_button_state = digitalRead(TRIGGER_BUTTON);
+  trigger_cv_state = digitalRead(TRIGGER_STATE);
+  triggered = !(trigger_button_state && trigger_cv_state);
+  if (triggered == LOW) trigger_first_pressed = HIGH;
 }
 
 void start_burst_init() {
   burst_time_start = millis();
-  digitalWrite (out, LOW);
-  digitalWrite (out_led, LOW);
+  digitalWrite (OUT_STATE, LOW);
+  digitalWrite (OUT_LED, LOW);
 
   burst_started = HIGH;
   repetition_counter = 0;
 
   //sub_division_counter = 0;
 
-  repetition_time_old = 0;
+  elapsed_time_since_prev_repetition_old = 0;
   burst_time_accu = 0;
   output_state = HIGH;
   first_burst = HIGH;
 
   switch ( distribution_sign ) { /// 0 negative , 1 positive, 2 zero
     case 1:
-      repetition_time_new = fscale( 0, clock_divided, 0, clock_divided, time_portions, distribution);
-      repetition_time = repetition_time_new;
+      elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions, distribution);
+      elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new;
       break;
     case 0:
-      repetition_time_old = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetitions - 1), distribution);
-      repetition_time_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetitions - 2), distribution);
-      repetition_time = repetition_time_old - repetition_time_new;
+      elapsed_time_since_prev_repetition_old = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetitions - 1), distribution);
+      elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetitions - 2), distribution);
+      elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
       break;
     case 2:
-      repetition_time_new = time_portions;
-      repetition_time = time_portions;
+      elapsed_time_since_prev_repetition_new = time_portions;
+      elapsed_time_since_prev_repetition = time_portions;
       break;
   }
 }
@@ -150,7 +150,7 @@ void read_repetitions() {
     if (encoder_value >= 4) {
       encoder_value = 0;
       repetitions_encoder_temp++;
-      if (repetitions_encoder_temp > max_repetitions) repetitions_encoder_temp = max_repetitions;
+      if (repetitions_encoder_temp > MAX_REPETITIONS) repetitions_encoder_temp = MAX_REPETITIONS;
       //  calculate_distribution = HIGH;
     }
     if (encoder_value <= -4) {
@@ -161,10 +161,10 @@ void read_repetitions() {
     }
   }
 
-  int cv_quantity_value = analogRead(cv_quantity);
+  int cv_quantity_value = analogRead(CV_QUANTITY);
   cv_quantity_value = map (cv_quantity_value, 0, 1000, 16, -16);
   repetitions_temp = repetitions_encoder_temp + cv_quantity_value;
-  if (repetitions_temp > max_repetitions) repetitions_temp = max_repetitions;
+  if (repetitions_temp > MAX_REPETITIONS) repetitions_temp = MAX_REPETITIONS;
   if (repetitions_temp < 1) repetitions_temp = 1;
 
   if (repetitions_temp != repetitions_old) {
@@ -179,12 +179,12 @@ void read_repetitions() {
 }
 
 void read_random() {
-  random_pot = analogRead (cv_prob);
+  random_pot = analogRead (CV_PROBABILITY);
 }
 
 
 void read_distribution() {
-  distribution_pot = analogRead (cv_distribution);
+  distribution_pot = analogRead (CV_DISTRIBUTION);
   switch (distribution_pot)
   {
     case -1 ... 60:
@@ -259,8 +259,8 @@ void read_distribution() {
 }
 
 void read_cycle() {
-  cycle_switch_state = digitalRead(cycle_switch);
-  cycle_in_state = digitalRead(cycle_in);
+  cycle_switch_state = digitalRead(CYCLE_SWITCH);
+  cycle_in_state = digitalRead(CYCLE_STATE);
   if (cycle_switch_state == HIGH) {
     cycle = !cycle_in_state;
   }
