@@ -269,25 +269,14 @@ void read_cycle() {
   }
 }
 
-float fscale( float originalMin, float originalMax, float newBegin, float newEnd, float inputValue, float curve) {
+int32_t fscale(int32_t originalMin, int32_t originalMax, int32_t newBegin, int32_t newEnd, int32_t inputValue, float curve) {
 
-  float OriginalRange = 0;
-  float NewRange = 0;
-  float zeroRefCurVal = 0;
+  int32_t originalRange = 0;
+  int32_t newRange = 0;
+  int32_t zeroRefCurVal = 0;
   float normalizedCurVal = 0;
-  float rangedValue = 0;
+  int32_t rangedValue = 0;
   boolean invFlag = 0;
-
-
-  // condition curve parameter
-  // limit range
-
-  if (curve > 10) curve = 10;
-  if (curve < -10) curve = -10;
-
-  curve = (curve * -.1) ; // - invert and scale - this seems more intuitive - postive numbers give more weight to high end on output
-  curve = pow(10, curve); // convert linear scale into lograthimic exponent for other pow function
-
 
   // Check for out of range inputValues
   if (inputValue < originalMin) {
@@ -298,33 +287,30 @@ float fscale( float originalMin, float originalMax, float newBegin, float newEnd
   }
 
   // Zero Refference the values
-  OriginalRange = originalMax - originalMin;
+  originalRange = originalMax - originalMin;
 
   if (newEnd > newBegin) {
-    NewRange = newEnd - newBegin;
+    newRange = newEnd - newBegin;
   }
   else
   {
-    NewRange = newBegin - newEnd;
+    newRange = newBegin - newEnd;
     invFlag = 1;
   }
 
   zeroRefCurVal = inputValue - originalMin;
-  normalizedCurVal  =  zeroRefCurVal / OriginalRange;   // normalize to 0 - 1 float
-
+  normalizedCurVal = ((float)zeroRefCurVal / (float)originalRange);   // normalize to 0 - 1 float
 
   // Check for originalMin > originalMax  - the math for all other cases i.e. negative numbers seems to work out fine
-  if (originalMin > originalMax ) {
+  if (originalMin > originalMax) {
     return 0;
   }
 
   if (invFlag == 0) {
-    rangedValue =  (pow(normalizedCurVal, curve) * NewRange) + newBegin;
-
+    rangedValue =  (int32_t)((pow(normalizedCurVal, curve) * newRange) + newBegin);
   }
-  else     // invert the ranges
-  {
-    rangedValue =  newBegin - (pow(normalizedCurVal, curve) * NewRange);
+  else { // invert the ranges
+    rangedValue =  (int32_t)(newBegin - (pow(normalizedCurVal, curve) * newRange));
   }
 
   return rangedValue;
@@ -332,15 +318,19 @@ float fscale( float originalMin, float originalMax, float newBegin, float newEnd
 
 void create_distribution_index () {
   for ( int i  = 0 ; i <= 8 ; i++) {
-    distribution_index_array [i] = mapfloat (i, 0, 8, 0, curve);
+    // invert and scale in advance: positive numbers give more weight to high end on output
+    // convert linear scale into logarithmic exponent for pow function in fscale()
+    distribution_index_array[i] = pow(10, (mapfloat(i, 0, 8, 0, curve) * -.1));
   }
 }
 
 float mapfloat(float x, float in_min, float in_max, float out_min, float out_max)
 {
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+  float rv = (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+
+  // limit range
+  if (rv > 10) rv = 10;
+  if (rv < -10) rv = -10;
+
+  return rv;
 }
-
-
-
-
