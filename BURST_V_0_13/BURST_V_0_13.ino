@@ -251,6 +251,7 @@ void loop() {
     trigger_difference = burst_time_start - tempo_tic_temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
     trigger_dif_proportional = (float)master_clock_temp / (float)trigger_difference;
     trigger_ready = false;
+    trigger_first_pressed = LOW;
   }
 
   calculate_clock();          /// we read the ping in and the encoder button to get : master clock, clock divided and time_portions
