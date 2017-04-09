@@ -62,8 +62,8 @@ void calculate_clock() {
 
 
 void read_trigger() {
+  bool trigger_cv_state = digitalRead(TRIGGER_STATE);
   trigger_button_state = digitalRead(TRIGGER_BUTTON);
-  trigger_cv_state = digitalRead(TRIGGER_STATE);
   triggered = !(trigger_button_state && trigger_cv_state);
   if (triggered == LOW) trigger_first_pressed = HIGH;
 }

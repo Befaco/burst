@@ -133,7 +133,6 @@ int curve = 5;                            /// the curved we apply to the  pow fu
 
 //// Trigger
 uint8_t trigger_button_state = LOW;           /// the trigger button
-bool trigger_cv_state = 0;               /// the trigger input
 bool triggered = false;                        /// the result of both trigger button and trigger input
 bool trigger_ready = true;          /// a falg to know if it is the first time we ahve pressed a trigger ( after release it is HIGH again)
 long trigger_difference = 0;            /// the time difference between the trigger and the ping
