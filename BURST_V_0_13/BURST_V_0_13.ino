@@ -416,10 +416,9 @@ void loop() {
       }
     }
 
-
     // pulse down
     if ( (output_state == HIGH) && (burst_started == HIGH) ) {
-      if ( current_time >=  elapsed_time_since_prev_repetition_old + 2) {
+      if (current_time >= (burst_time_start + burst_time_accu + 2)) {
         output_state = !output_state;
         digitalWrite(OUT_STATE, !(output_state * no_more_bursts));
         digitalWrite(OUT_LED, (output_state * no_more_bursts));
