@@ -261,7 +261,7 @@ void loop() {
 
 
   current_time = millis();
-  if (cycle == HIGH) {                                                      //////// CYCLE ON
+  if (cycle == HIGH) {                                                           //////// CYCLE ON
 
     if (( current_time > tempo_tic + (clock_divided * sub_division_counter) + trigger_difference ) && resync) {                  //////// RESYNC BETWEEN CYCLE AND PING MAINTAINING PHASE bearing in mind the difference, the divisions and the
 
@@ -313,6 +313,7 @@ void loop() {
     }
 
     current_time = millis();
+
     // pulse up - burst time
     if ( (output_state == LOW) && (burst_started == HIGH) ) {
       if ( current_time >= (burst_time_start + elapsed_time_since_prev_repetition + burst_time_accu) ) { ///// WE COUNT THE TIME TO THE NEXT PULSE
@@ -347,7 +348,6 @@ void loop() {
           }
         }
         else {                                                  ///// tHE END OF THE BURST
-
           sub_division_counter++;
           switch (divisions) {                                  ///// WE ADJUST THE VALUE OF TEMPO_TIC ( FOR THE RESYNC) DEPENDING ON TIME_DIVISIONS AND THE AMOUNT OF SUB-BURSTS DONE
             case 0:
@@ -400,12 +400,7 @@ void loop() {
       }
     }
   }
-
-
-
-
-  else {                                                                    ////// CYCLE OFF
-
+  else {                                                                         ////// CYCLE OFF
     if (current_time >=  eoc_counter + 90) {
       digitalWrite(EOC_LED, LOW);
       digitalWrite(EOC_STATE, HIGH);
@@ -430,7 +425,6 @@ void loop() {
         first_burst = LOW;
       }
     }
-
     // pulse up - burst time
     if ( (output_state == LOW) && (burst_started == HIGH) ) {
       if ( current_time >= (burst_time_start + elapsed_time_since_prev_repetition + burst_time_accu) ) {
