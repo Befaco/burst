@@ -187,71 +187,71 @@ void read_distribution() {
   distribution_pot = analogRead (CV_DISTRIBUTION);
   switch (distribution_pot)
   {
-    case -1 ... 60:
+    case -1 ... 56:
       distribution = distribution_index_array [8];
       distribution_sign = 0;
       break;
-    case 61 ... 120:
+    case 57 ... 113:
       distribution = distribution_index_array [7];
       distribution_sign = 0;
       break;
-    case 121 ... 180:
+    case 114 ... 170:
       distribution = distribution_index_array [6];
       distribution_sign = 0;
       break;
-    case 181 ... 240:
+    case 171 ... 227:
       distribution = distribution_index_array [5];
       distribution_sign = 0;
       break;
-    case 241 ... 300:
+    case 228 ... 284:
       distribution = distribution_index_array [4];
       distribution_sign = 0;
       break;
-    case 301 ... 361:
+    case 285 ... 341:
       distribution = distribution_index_array [3];
       distribution_sign = 0;
       break;
-    case 362 ... 421:
+    case 342 ... 398:
       distribution = distribution_index_array [2];
       distribution_sign = 0;
       break;
-    case 422 ... 481:
+    case 399 ... 455:
       distribution = distribution_index_array [1];
       distribution_sign = 0;
       break;
-    case 482 ... 541:
+    case 456 ... 568: // this was too narrow and easy to miss, adjusted all the others to be a little more narrow, and this is ~twice as wide
       distribution = distribution_index_array [0];
       distribution_sign = 2;
       break;
-    case 542 ... 601:
+    case 569 ... 625:
       distribution = distribution_index_array [1];
       distribution_sign = 1;
       break;
-    case 602 ... 661:
+    case 626 ... 682:
       distribution = distribution_index_array [2];
       distribution_sign = 1;
       break;
-    case 662 ... 722:
+    case 683 ... 739:
       distribution = distribution_index_array [3];
       distribution_sign = 1;
       break;
-    case 723 ... 782:
+    case 740 ... 796:
       distribution = distribution_index_array [4];
       distribution_sign = 1;
       break;
-    case 783 ... 842:
+    case 797 ... 853:
       distribution = distribution_index_array [5];
       distribution_sign = 1;
       break;
-    case 852 ... 902:
+    case 854 ... 910:
       distribution = distribution_index_array [6];
       distribution_sign = 1;
       break;
-    case 903 ... 962:
+    case 911 ... 967:
       distribution = distribution_index_array [7];
       distribution_sign = 1;
       break;
-    case 963 ... 1024:
+    case 968 ... 1024:
       distribution = distribution_index_array [8];
       distribution_sign = 1;
       break;
