@@ -99,6 +99,8 @@ unsigned long elapsed_time_since_prev_repetition_old = 0;           /// the posi
 
 unsigned long led_quantity_time = 0;        /// time counter used to turn off the led when we are chosing the number of repetitions with the encoder
 
+bool had_eoc = true;
+bool in_eoc = false;
 unsigned long eoc_counter = 0;              /// a counter to turn off the eoc led and the eoc output
 
 
@@ -229,6 +231,9 @@ void setup() {
 void loop() {
 
   if ((triggered == HIGH) && (trigger_first_pressed == HIGH))  {    ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
+    if (!had_eoc) {
+      enableEOC(current_time);
+    }
     sub_division_counter = 0;
     if (repetitions_encoder_temp != repetitions_encoder) {
       repetitions_encoder = repetitions_encoder_temp;
@@ -239,6 +244,7 @@ void loop() {
     trigger_difference = burst_time_start - tempo_tic_temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
     trigger_dif_proportional = (float)master_clock_temp / (float)trigger_difference;
     trigger_first_pressed = LOW;
+    had_eoc = false;
   }
 
   calculate_clock(); // we read the ping in and the encoder button to get : master clock, clock divided and time_portions
@@ -246,6 +252,9 @@ void loop() {
   read_repetitions(); // we read the number of repetitions in the encoder, we have to attend this process often to avoid missing encoder tics.
 
   current_time = millis();
+  handleEOC(current_time, 30);
+  handleLEDs(current_time);
+
   if (cycle == HIGH) { // CYCLE ON
     if ((current_time > (tempo_tic + (clock_divided * sub_division_counter) + trigger_difference)) && resync) { // RESYNC BETWEEN CYCLE AND PING MAINTAINING PHASE bearing in mind the difference, the divisions and the
       if (repetitions != repetitions_temp) {
@@ -253,17 +262,9 @@ void loop() {
       }
       doResync();
     }
-
-    handleEOC(current_time, 25);
-    handleLEDs(current_time);
-    handlePulseDown(current_time);
-    handlePulseUp(current_time, cycle);
-
   }
-  else { // CYCLE OFF
-    handleEOC(current_time, 90);
-    handleLEDs(current_time);
-    handlePulseDown(current_time);
-    handlePulseUp(current_time, cycle);
-  }
+
+  handlePulseDown(current_time);
+  handlePulseUp(current_time, cycle);
+
 }

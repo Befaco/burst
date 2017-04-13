@@ -331,17 +331,17 @@ float mapfloat(float x, float in_min, float in_max, float out_min, float out_max
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-void handleLEDs(unsigned long current_time) {
-    if ((current_time >= led_quantity_time + 250) && (no_more_bursts)) {
+void handleLEDs(unsigned long now) {
+    if ((now >= led_quantity_time + 250) && (no_more_bursts)) {
     for (int i = 0 ; i < 4 ; i++) {
       digitalWrite(led_pin[i], bitRead(repetition_counter, i));
     }
   }
 }
 
-void handlePulseDown(unsigned long current_time) {
+void handlePulseDown(unsigned long now) {
   if ((output_state == HIGH) && (burst_started == HIGH)) {
-    if (current_time >= (burst_time_start + burst_time_accu + 2)) {
+    if (now >= (burst_time_start + burst_time_accu + 2)) {
       output_state = !output_state;
       digitalWrite(OUT_STATE, !(output_state * no_more_bursts));
       digitalWrite(OUT_LED, (output_state * no_more_bursts));
@@ -354,20 +354,33 @@ void handlePulseDown(unsigned long current_time) {
   }
 }
 
-void handleEOC(unsigned long current_time, int width) {
-  if (current_time >= eoc_counter + width) {
+void enableEOC(unsigned long now) {
+  if (in_eoc) {
+    eoc_counter = now;
+    handleEOC(now, 0); // turn off the EOC if necessary
+  }
+  // turn it (back) on
+  digitalWrite(EOC_LED, HIGH);
+  digitalWrite(EOC_STATE, LOW);
+  in_eoc = true;
+  eoc_counter = now;
+}
+
+void handleEOC(unsigned long now, int width) {
+  if (now >= eoc_counter + width) {
     digitalWrite(EOC_LED, LOW);
     digitalWrite(EOC_STATE, HIGH);
+    in_eoc = false;
   }
 }
 
-void handlePulseUp(unsigned long current_time, bool cycle) {
+void handlePulseUp(unsigned long now, bool inCycle) {
   int positionTemp = 0;
   int inputValue;
 
   // pulse up - burst time
   if ((output_state == LOW) && (burst_started == HIGH)) {
-    if (current_time >= (burst_time_start + elapsed_time_since_prev_repetition + burst_time_accu)) { // time for a repetition
+    if (now >= (burst_time_start + elapsed_time_since_prev_repetition + burst_time_accu)) { // time for a repetition
 
       if (repetition_counter < repetitions - 1) { // is it the last repetition?
         output_state = !output_state;
@@ -409,13 +422,13 @@ void handlePulseUp(unsigned long current_time, bool cycle) {
         }
       }
       else { // it's the end of the burst
-        digitalWrite(EOC_LED, HIGH);
-        digitalWrite(EOC_STATE, LOW);
-        eoc_counter = current_time;
+        enableEOC(now);
+        had_eoc = true;
+
         no_more_bursts = HIGH;
         burst_started = LOW;
 
-        if (cycle == HIGH) {
+        if (inCycle) {
           resync = HIGH;
           // WE ADJUST THE VALUE OF TEMPO_TIC (FOR THE RESYNC) DEPENDING ON TIME_DIVISIONS AND THE AMOUNT OF SUB-BURSTS DONE
           sub_division_counter++;
