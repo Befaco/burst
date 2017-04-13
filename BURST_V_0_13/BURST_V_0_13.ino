@@ -138,7 +138,6 @@ int curve = 5;                            /// the curved we apply to the  pow fu
 //// Trigger
 uint8_t trigger_button_state = LOW;           /// the trigger button
 bool triggered = false;                        /// the result of both trigger button and trigger input
-bool trigger_ready = true;          /// a falg to know if it is the first time we ahve pressed a trigger ( after release it is HIGH again)
 long trigger_difference = 0;            /// the time difference between the trigger and the ping
 bool trigger_first_pressed = 0;
 float trigger_dif_proportional = 0;
@@ -181,8 +180,8 @@ void setup() {
   /// Encoder
   encoder = new ClickEncoder(ENCODER_2, ENCODER_1, 3);
 
-  Timer1.initialize(1000); // maybe 100u?
-  Timer1.attachInterrupt(timerIsr); // why do we only service the encoder here, actually we should get the values of all the interface elements. the variables we set need to be 'volatile' and we need to disabled interrupts when reading them (we can just copy them and then re-enable interrupts).
+  Timer1.initialize(1000);
+  Timer1.attachInterrupt(timerIsr);
 
   // Encoder pins
   pinMode (ENCODER_1, INPUT_PULLUP);
@@ -239,7 +238,6 @@ void loop() {
 
     trigger_difference = burst_time_start - tempo_tic_temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
     trigger_dif_proportional = (float)master_clock_temp / (float)trigger_difference;
-    trigger_ready = false;
     trigger_first_pressed = LOW;
   }
 
