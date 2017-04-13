@@ -112,13 +112,11 @@ int sub_division_counter = 0;
 
 #define MAX_REPETITIONS 32                  /// max number of repetitions
 
-byte repetitions = 0;                       /// number of repetitions
-byte repetitions_old = 0;
-byte repetitions_temp = 0;                  /// temporal value that adds the number of repetitions in the encoder and the number number added by the CV quantity input
+byte repetitions = 1;                       /// number of repetitions
+byte repetitions_old = 1;
+byte repetitions_temp = 1;                  /// temporal value that adds the number of repetitions in the encoder and the number number added by the CV quantity input
 byte repetitions_encoder = 0;
 byte repetitions_encoder_temp = 0;
-unsigned long position_temp = 0;
-
 
 ///// Random
 int random_pot = 0;
@@ -232,6 +230,7 @@ void setup() {
 void loop() {
 
   if ((triggered == HIGH) && (trigger_first_pressed == HIGH))  {    ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
+    sub_division_counter = 0;
     if (repetitions_encoder_temp != repetitions_encoder) {
       repetitions_encoder = repetitions_encoder_temp;
       EEPROM.write(4, repetitions_encoder_temp);
@@ -250,7 +249,7 @@ void loop() {
 
   current_time = millis();
   if (cycle == HIGH) { // CYCLE ON
-    if (( current_time > tempo_tic + (clock_divided * sub_division_counter) + trigger_difference ) && resync) { // RESYNC BETWEEN CYCLE AND PING MAINTAINING PHASE bearing in mind the difference, the divisions and the
+    if ((current_time > (tempo_tic + (clock_divided * sub_division_counter) + trigger_difference)) && resync) { // RESYNC BETWEEN CYCLE AND PING MAINTAINING PHASE bearing in mind the difference, the divisions and the
       if (repetitions != repetitions_temp) {
         EEPROM.write(4, repetitions_temp);
       }

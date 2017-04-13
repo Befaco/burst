@@ -68,7 +68,7 @@ void start_burst_init() {
   burst_started = HIGH;
   repetition_counter = 0;
 
-  //sub_division_counter = 0;
+  // sub_division_counter = 0;
 
   elapsed_time_since_prev_repetition_old = 0;
   burst_time_accu = 0;
@@ -77,13 +77,19 @@ void start_burst_init() {
 
   switch (distribution_sign) {
     case DISTRIBUTION_SIGN_POSITIVE:
-      elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions, distribution);
+      elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, time_portions, distribution);
       elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new;
       break;
     case DISTRIBUTION_SIGN_NEGATIVE:
-      elapsed_time_since_prev_repetition_old = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetitions - 1), distribution);
-      elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetitions - 2), distribution);
-      elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
+      if (repetitions > 1) {
+        elapsed_time_since_prev_repetition_old = fscale(0, clock_divided, 0, clock_divided, time_portions * (repetitions - 1), distribution);
+        elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, time_portions * (repetitions - 2), distribution);
+        elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
+      }
+      else {
+        elapsed_time_since_prev_repetition_new = time_portions;
+        elapsed_time_since_prev_repetition = time_portions;
+      }
       break;
     case DISTRIBUTION_SIGN_ZERO:
       elapsed_time_since_prev_repetition_new = time_portions;
@@ -356,6 +362,9 @@ void handleEOC(unsigned long current_time, int width) {
 }
 
 void handlePulseUp(unsigned long current_time, bool cycle) {
+  int positionTemp = 0;
+  int inputValue;
+
   // pulse up - burst time
   if ((output_state == LOW) && (burst_started == HIGH)) {
     if (current_time >= (burst_time_start + elapsed_time_since_prev_repetition + burst_time_accu)) { // time for a repetition
@@ -369,16 +378,26 @@ void handlePulseUp(unsigned long current_time, bool cycle) {
 
         switch (distribution_sign) {
           case DISTRIBUTION_SIGN_POSITIVE:
+            inputValue = time_portions * (repetition_counter + 1);
             elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
-            elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, time_portions * (repetition_counter + 1), distribution);
+            elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, inputValue, distribution);
             elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new - elapsed_time_since_prev_repetition_old;
             break;
           case DISTRIBUTION_SIGN_NEGATIVE:
             elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
 
-            position_temp = repetitions - repetition_counter - 2;
-            if (position_temp > 0) {
-              elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, time_portions * position_temp, distribution);
+            positionTemp = repetitions - repetition_counter - 2;
+            if (positionTemp < 0) {
+              inputValue = 0;
+            }
+            else if (positionTemp > 0) {
+              inputValue = time_portions * positionTemp;
+            }
+            else {
+              ; // won't be used
+            }
+            if (positionTemp != 0) {
+              elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, inputValue, distribution);
               elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
             }
             break;
@@ -390,42 +409,6 @@ void handlePulseUp(unsigned long current_time, bool cycle) {
         }
       }
       else { // it's the end of the burst
-        if (cycle == HIGH) {
-          // WE ADJUST THE VALUE OF TEMPO_TIC (FOR THE RESYNC) DEPENDING ON TIME_DIVISIONS AND THE AMOUNT OF SUB-BURSTS DONE
-          sub_division_counter++;
-          switch (divisions) {
-            case 0:
-              tempo_tic = tempo_tic_temp;
-              sub_division_counter = 0;
-              break;
-            case -2:
-              if (sub_division_counter == 2) {
-                tempo_tic = tempo_tic_temp;
-                sub_division_counter = 0;
-              }
-              break;
-            case -3:
-              if (sub_division_counter == 3) {
-                tempo_tic = tempo_tic_temp;
-                sub_division_counter = 0;
-              }
-              break;
-            case -4:
-              if (sub_division_counter == 4) {
-                tempo_tic = tempo_tic_temp;
-                sub_division_counter = 0;
-              }
-              break;
-            case -5:
-              if (sub_division_counter == 5) {
-                tempo_tic = tempo_tic_temp;
-                sub_division_counter = 0;
-              }
-              break;
-          }
-        }
-
-        resync = HIGH;
         digitalWrite(EOC_LED, HIGH);
         digitalWrite(EOC_STATE, LOW);
         eoc_counter = current_time;
@@ -433,6 +416,13 @@ void handlePulseUp(unsigned long current_time, bool cycle) {
         burst_started = LOW;
 
         if (cycle == HIGH) {
+          resync = HIGH;
+          // WE ADJUST THE VALUE OF TEMPO_TIC (FOR THE RESYNC) DEPENDING ON TIME_DIVISIONS AND THE AMOUNT OF SUB-BURSTS DONE
+          sub_division_counter++;
+          if (divisions <= 0 && sub_division_counter >= -(divisions)) {
+              tempo_tic = tempo_tic_temp;
+              resync = LOW;
+          }
           read_cycle();
           /// try to mantain proportional difference between ping and trigger, with external clock and cycle, and the clock changes
 
