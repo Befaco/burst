@@ -320,17 +320,15 @@ void create_distribution_index () {
   for ( int i  = 0 ; i <= 8 ; i++) {
     // invert and scale in advance: positive numbers give more weight to high end on output
     // convert linear scale into logarithmic exponent for pow function in fscale()
-    distribution_index_array[i] = pow(10, (mapfloat(i, 0, 8, 0, curve) * -.1));
+    float val = mapfloat(i, 0, 8, 0, curve);
+    val = val > 10. ? 10. : val < -10. ? -10. : val;
+    val *= -0.1;
+    val = pow(10, val);
+    distribution_index_array[i] = val;
   }
 }
 
 float mapfloat(float x, float in_min, float in_max, float out_min, float out_max)
 {
-  float rv = (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-
-  // limit range
-  if (rv > 10) rv = 10;
-  if (rv < -10) rv = -10;
-
-  return rv;
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
