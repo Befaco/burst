@@ -83,17 +83,17 @@ void start_burst_init() {
   output_state = HIGH;
   first_burst = HIGH;
 
-  switch ( distribution_sign ) { /// 0 negative , 1 positive, 2 zero
-    case 1:
+  switch ( distribution_sign ) {
+    case DISTRIBUTION_SIGN_POSITIVE:
       elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions, distribution);
       elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new;
       break;
-    case 0:
+    case DISTRIBUTION_SIGN_NEGATIVE:
       elapsed_time_since_prev_repetition_old = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetitions - 1), distribution);
       elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * (repetitions - 2), distribution);
       elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
       break;
-    case 2:
+    case DISTRIBUTION_SIGN_ZERO:
       elapsed_time_since_prev_repetition_new = time_portions;
       elapsed_time_since_prev_repetition = time_portions;
       break;
@@ -189,71 +189,71 @@ void read_distribution() {
   {
     case -1 ... 56:
       distribution = distribution_index_array [8];
-      distribution_sign = 0;
+      distribution_sign = DISTRIBUTION_SIGN_NEGATIVE;
       break;
     case 57 ... 113:
       distribution = distribution_index_array [7];
-      distribution_sign = 0;
+      distribution_sign = DISTRIBUTION_SIGN_NEGATIVE;
       break;
     case 114 ... 170:
       distribution = distribution_index_array [6];
-      distribution_sign = 0;
+      distribution_sign = DISTRIBUTION_SIGN_NEGATIVE;
       break;
     case 171 ... 227:
       distribution = distribution_index_array [5];
-      distribution_sign = 0;
+      distribution_sign = DISTRIBUTION_SIGN_NEGATIVE;
       break;
     case 228 ... 284:
       distribution = distribution_index_array [4];
-      distribution_sign = 0;
+      distribution_sign = DISTRIBUTION_SIGN_NEGATIVE;
       break;
     case 285 ... 341:
       distribution = distribution_index_array [3];
-      distribution_sign = 0;
+      distribution_sign = DISTRIBUTION_SIGN_NEGATIVE;
       break;
     case 342 ... 398:
       distribution = distribution_index_array [2];
-      distribution_sign = 0;
+      distribution_sign = DISTRIBUTION_SIGN_NEGATIVE;
       break;
     case 399 ... 455:
       distribution = distribution_index_array [1];
-      distribution_sign = 0;
+      distribution_sign = DISTRIBUTION_SIGN_NEGATIVE;
       break;
     case 456 ... 568: // this was too narrow and easy to miss, adjusted all the others to be a little more narrow, and this is ~twice as wide
       distribution = distribution_index_array [0];
-      distribution_sign = 2;
+      distribution_sign = DISTRIBUTION_SIGN_ZERO;
       break;
     case 569 ... 625:
       distribution = distribution_index_array [1];
-      distribution_sign = 1;
+      distribution_sign = DISTRIBUTION_SIGN_POSITIVE;
       break;
     case 626 ... 682:
       distribution = distribution_index_array [2];
-      distribution_sign = 1;
+      distribution_sign = DISTRIBUTION_SIGN_POSITIVE;
       break;
     case 683 ... 739:
       distribution = distribution_index_array [3];
-      distribution_sign = 1;
+      distribution_sign = DISTRIBUTION_SIGN_POSITIVE;
       break;
     case 740 ... 796:
       distribution = distribution_index_array [4];
-      distribution_sign = 1;
+      distribution_sign = DISTRIBUTION_SIGN_POSITIVE;
       break;
     case 797 ... 853:
       distribution = distribution_index_array [5];
-      distribution_sign = 1;
+      distribution_sign = DISTRIBUTION_SIGN_POSITIVE;
       break;
     case 854 ... 910:
       distribution = distribution_index_array [6];
-      distribution_sign = 1;
+      distribution_sign = DISTRIBUTION_SIGN_POSITIVE;
       break;
     case 911 ... 967:
       distribution = distribution_index_array [7];
-      distribution_sign = 1;
+      distribution_sign = DISTRIBUTION_SIGN_POSITIVE;
       break;
     case 968 ... 1024:
       distribution = distribution_index_array [8];
-      distribution_sign = 1;
+      distribution_sign = DISTRIBUTION_SIGN_POSITIVE;
       break;
   }
 }
@@ -331,4 +331,140 @@ void create_distribution_index () {
 float mapfloat(float x, float in_min, float in_max, float out_min, float out_max)
 {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+void handleLEDs(unsigned long current_time) {
+    if ((current_time >= led_quantity_time + 250) && (no_more_bursts)) {
+    for (int i = 0 ; i < 4 ; i++) {
+      digitalWrite(led_pin[i], bitRead(repetition_counter, i));
+    }
+  }
+}
+
+void handlePulseDown(unsigned long current_time) {
+  if ( (output_state == HIGH) && (burst_started == HIGH) ) {
+    if (current_time >= (burst_time_start + burst_time_accu + 2)) {
+      output_state = !output_state;
+      digitalWrite(OUT_STATE, !(output_state * no_more_bursts));
+      digitalWrite(OUT_LED, (output_state * no_more_bursts));
+      random_dif = random_pot - random(1023);
+      if (( first_burst == HIGH ) && (random_dif <= 0) && trigger_button_state) {
+        no_more_bursts = LOW;
+      }
+      first_burst = LOW;
+    }
+  }
+}
+
+void handleEOC(unsigned long current_time, int width) {
+  if (current_time >= eoc_counter + width) {
+    digitalWrite(EOC_LED, LOW);
+    digitalWrite(EOC_STATE, HIGH);
+  }
+}
+
+void handlePulseUp(unsigned long current_time, bool cycle) {
+  // pulse up - burst time
+  if ((output_state == LOW) && (burst_started == HIGH)) {
+    if (current_time >= (burst_time_start + elapsed_time_since_prev_repetition + burst_time_accu)) { // time for a repetition
+
+      if (repetition_counter < repetitions - 1) { // is it the last repetition?
+        output_state = !output_state;
+        digitalWrite(OUT_STATE, !(output_state * no_more_bursts));
+        digitalWrite(OUT_LED, (output_state * no_more_bursts));
+        burst_time_accu += elapsed_time_since_prev_repetition;
+        repetition_counter++;
+
+        switch (distribution_sign) {
+          case DISTRIBUTION_SIGN_POSITIVE:
+            elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
+            elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, time_portions * (repetition_counter + 1), distribution);
+            elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new - elapsed_time_since_prev_repetition_old;
+            break;
+          case DISTRIBUTION_SIGN_NEGATIVE:
+            elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
+            position_temp = repetitions - repetition_counter - 2;
+            if (position_temp > 0) {
+              elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * position_temp, distribution);
+              elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
+            }
+            break;
+          case DISTRIBUTION_SIGN_ZERO:
+            elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
+            elapsed_time_since_prev_repetition_new = time_portions *  (repetition_counter + 1);
+            elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new - elapsed_time_since_prev_repetition_old;
+            break;
+        }
+      }
+      else { // it's the end of the burst
+        if (cycle == HIGH) {
+          // WE ADJUST THE VALUE OF TEMPO_TIC (FOR THE RESYNC) DEPENDING ON TIME_DIVISIONS AND THE AMOUNT OF SUB-BURSTS DONE
+          sub_division_counter++;
+          switch (divisions) {
+            case 0:
+              tempo_tic = tempo_tic_temp;
+              sub_division_counter = 0;
+              break;
+            case -2:
+              if (sub_division_counter == 2) {
+                tempo_tic = tempo_tic_temp;
+                sub_division_counter = 0;
+              }
+              break;
+            case -3:
+              if (sub_division_counter == 3) {
+                tempo_tic = tempo_tic_temp;
+                sub_division_counter = 0;
+              }
+              break;
+            case -4:
+              if (sub_division_counter == 4) {
+                tempo_tic = tempo_tic_temp;
+                sub_division_counter = 0;
+              }
+              break;
+            case -5:
+              if (sub_division_counter == 5) {
+                tempo_tic = tempo_tic_temp;
+                sub_division_counter = 0;
+              }
+              break;
+          }
+        }
+
+        resync = HIGH;
+        digitalWrite(EOC_LED, HIGH);
+        digitalWrite(EOC_STATE, LOW);
+        eoc_counter = current_time;
+        no_more_bursts = HIGH;
+        burst_started = LOW;
+
+        if (cycle == HIGH) {
+          read_cycle();
+          /// try to mantain proportional difference between ping and trigger, with external clock and cycle, and the clock changes
+
+          if (master_clock_temp != master_clock) {
+            trigger_difference = (float)master_clock_temp / trigger_dif_proportional;
+          }
+        }
+
+        for (int i = 0 ; i < 4 ; i++) {
+          digitalWrite(led_pin[i], bitRead(repetitions - 1, i));
+        }
+      }
+    }
+  }
+}
+
+void doResync() {
+  repetitions = repetitions_temp;
+  clock_divided = clock_divided_temp;
+  master_clock = master_clock_temp;
+  time_portions = time_portions_temp;
+  read_division();
+  read_random();
+  read_distribution();
+  read_cycle();
+  start_burst_init();
+  resync = LOW;
 }
