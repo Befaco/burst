@@ -33,16 +33,8 @@ void calculate_clock() {
     if (tap_index > 3) tap_index = 0;
     old_tempo_tic = tempo_tic_temp;
 
-    if ( divisions > 0) {
-      clock_divided_temp = master_clock_temp * divisions;
-    }
-    if ( divisions < 0) {
-      clock_divided_temp = master_clock_temp / (-divisions);
-    }
-    if ( divisions == 0) {
-      clock_divided_temp = master_clock_temp;
-    }
-    time_portions_temp = clock_divided_temp / repetitions_temp;
+    calcTimePortions();
+
     if (encoder_button_state == 1) {
       bitWrite(encoder_button_state, 1, 1);
       EEPROM.write(0, master_clock_temp & 0xFF);
@@ -83,7 +75,7 @@ void start_burst_init() {
   output_state = HIGH;
   first_burst = HIGH;
 
-  switch ( distribution_sign ) {
+  switch (distribution_sign) {
     case DISTRIBUTION_SIGN_POSITIVE:
       elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions, distribution);
       elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new;
@@ -342,13 +334,13 @@ void handleLEDs(unsigned long current_time) {
 }
 
 void handlePulseDown(unsigned long current_time) {
-  if ( (output_state == HIGH) && (burst_started == HIGH) ) {
+  if ((output_state == HIGH) && (burst_started == HIGH)) {
     if (current_time >= (burst_time_start + burst_time_accu + 2)) {
       output_state = !output_state;
       digitalWrite(OUT_STATE, !(output_state * no_more_bursts));
       digitalWrite(OUT_LED, (output_state * no_more_bursts));
       random_dif = random_pot - random(1023);
-      if (( first_burst == HIGH ) && (random_dif <= 0) && trigger_button_state) {
+      if ((first_burst == HIGH) && (random_dif <= 0) && trigger_button_state) {
         no_more_bursts = LOW;
       }
       first_burst = LOW;
@@ -383,9 +375,10 @@ void handlePulseUp(unsigned long current_time, bool cycle) {
             break;
           case DISTRIBUTION_SIGN_NEGATIVE:
             elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
+
             position_temp = repetitions - repetition_counter - 2;
             if (position_temp > 0) {
-              elapsed_time_since_prev_repetition_new = fscale( 0, clock_divided, 0, clock_divided, time_portions * position_temp, distribution);
+              elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, time_portions * position_temp, distribution);
               elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
             }
             break;
@@ -467,4 +460,17 @@ void doResync() {
   read_cycle();
   start_burst_init();
   resync = LOW;
+}
+
+void calcTimePortions() {
+  if (divisions > 0) {
+    clock_divided_temp = master_clock_temp * divisions;
+  }
+  else if (divisions < 0) {
+    clock_divided_temp = master_clock_temp / (-divisions);
+  }
+  else if (divisions == 0) {
+    clock_divided_temp = master_clock_temp;
+  }
+  time_portions_temp = clock_divided_temp / repetitions_temp;
 }

@@ -218,24 +218,15 @@ void setup() {
   master_clock = (EEPROM.read(0) & 0xFF) + (((long)EEPROM.read(1) << 8) & 0xFFFF) + (((long)EEPROM.read(2) << 16) & 0xFFFFFF) + (((long)EEPROM.read(3) << 24) & 0xFFFFFFFF);
   master_clock_temp = master_clock;
   repetitions = EEPROM.read(4);
+  if (repetitions < 1) repetitions = 1;
+
   repetitions_temp = repetitions;
   repetitions_old = repetitions;
   repetitions_encoder = repetitions;
   repetitions_encoder_temp = repetitions;
+
   read_division();
-
-  if ( divisions > 0) {
-    clock_divided_temp = master_clock_temp * divisions;
-  }
-  if ( divisions < 0) {
-    clock_divided_temp = master_clock_temp / (-divisions);
-  }
-  if ( divisions == 0) {
-    clock_divided_temp = master_clock_temp;
-  }
-  time_portions_temp = clock_divided_temp / repetitions_temp;
-
-
+  calcTimePortions();
 }
 
 void loop() {
@@ -253,11 +244,9 @@ void loop() {
     trigger_first_pressed = LOW;
   }
 
-  calculate_clock();          /// we read the ping in and the encoder button to get : master clock, clock divided and time_portions
-  read_trigger();             /// we read the trigger input and the trigger button to see if it is high or low, if it is high and it is the first time it is.
-  read_repetitions();         /// we read the number of repetitions in the encoder, we have to attend this process often to avoid missing encoder tics.
-
-
+  calculate_clock(); // we read the ping in and the encoder button to get : master clock, clock divided and time_portions
+  read_trigger(); // we read the trigger input and the trigger button to see if it is high or low, if it is high and it is the first time it is.
+  read_repetitions(); // we read the number of repetitions in the encoder, we have to attend this process often to avoid missing encoder tics.
 
   current_time = millis();
   if (cycle == HIGH) { // CYCLE ON
