@@ -104,7 +104,6 @@ unsigned long eoc_counter = 0;              /// a counter to turn off the eoc le
 
 //    divisions
 int divisions;                            //// value of the time division or the time multiplier
-int divisions_old;
 int divisions_pot;
 int sub_division_counter = 0;
 
@@ -230,7 +229,7 @@ void loop() {
 
   unsigned long current_time = millis();
 
-  if ((triggered == HIGH) && (trigger_first_pressed == HIGH))  {    ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
+  if ((triggered == HIGH) && (trigger_first_pressed == HIGH)) { ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
     if (wants_eoc) {
       enableEOC(current_time);
     }
@@ -244,7 +243,7 @@ void loop() {
 
     trigger_difference = burst_time_start - tempo_tic_temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
     trigger_dif_proportional = (float)master_clock_temp / (float)trigger_difference;
-    trigger_first_pressed = LOW;
+    triggered = trigger_first_pressed = LOW;
   }
 
   calculate_clock(current_time); // we read the ping in and the encoder button to get : master clock, clock divided and time_portions

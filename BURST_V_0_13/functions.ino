@@ -19,7 +19,7 @@ void calculate_clock(unsigned long now) {
 
 
   /// if ping or tap button have raised
-  if ((encoder_button_state == 1) ||  (ping_in_state == 1)) {
+  if ((encoder_button_state == 1) || (ping_in_state == 1)) {
     tempo_tic_temp = now;
     tap_tempo_array [tap_index] = tempo_tic_temp - old_tempo_tic;
     averaged_taps = 0;
@@ -46,6 +46,10 @@ void calculate_clock(unsigned long now) {
     if (ping_in_state == 1) bitWrite(ping_in_state, 1, 1);
 
   }
+  else if ((triggered == HIGH)) {
+    calcTimePortions();
+  }
+
   if ((encoder_button_state == 2) || (ping_in_state == 2)) {
     bitWrite(encoder_button_state, 1, 0);
     bitWrite(ping_in_state, 1, 0);
@@ -131,14 +135,7 @@ void read_division() {                                  //// READ DIVISIONS
       divisions = 5;
       break;
   }
-
-  if (divisions != divisions_old) {
-    // calculate_distribution = HIGH;
-    divisions_old = divisions;
-
-  }
 }
-
 
 void read_repetitions(unsigned long now) {
 
