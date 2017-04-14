@@ -411,7 +411,6 @@ void handlePulseUp(unsigned long now, bool inCycle) {
       }
       else { // it's the end of the burst
         enableEOC(now);
-        had_eoc = true;
 
         no_more_bursts = HIGH;
         burst_started = LOW;
@@ -423,6 +422,7 @@ void handlePulseUp(unsigned long now, bool inCycle) {
           if (divisions <= 0 && sub_division_counter >= -(divisions)) {
               tempo_tic = tempo_tic_temp;
               resync = LOW;
+              had_eoc = true;
           }
           read_cycle();
           /// try to mantain proportional difference between ping and trigger, with external clock and cycle, and the clock changes
@@ -430,6 +430,9 @@ void handlePulseUp(unsigned long now, bool inCycle) {
           if (master_clock_temp != master_clock) {
             trigger_difference = (float)master_clock_temp / trigger_dif_proportional;
           }
+        }
+        else {
+          had_eoc = true;
         }
 
         for (int i = 0 ; i < 4 ; i++) {
