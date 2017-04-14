@@ -1,4 +1,4 @@
-void calculate_clock() {
+void calculate_clock(unsigned long now) {
 
   ////  Read the encoder button state
 
@@ -20,7 +20,7 @@ void calculate_clock() {
 
   /// if ping or tap button have raised
   if ((encoder_button_state == 1) ||  (ping_in_state == 1)) {
-    tempo_tic_temp = millis();
+    tempo_tic_temp = now;
     tap_tempo_array [tap_index] = tempo_tic_temp - old_tempo_tic;
     averaged_taps = 0;
     for (int taps = 0 ; taps <= max_taps ; taps ++) {
@@ -60,8 +60,8 @@ void read_trigger() {
   if (triggered == LOW) trigger_first_pressed = HIGH;
 }
 
-void start_burst_init() {
-  burst_time_start = millis();
+void start_burst_init(unsigned long now) {
+  burst_time_start = now;
   digitalWrite (OUT_STATE, LOW);
   digitalWrite (OUT_LED, LOW);
 
@@ -140,7 +140,7 @@ void read_division() {                                  //// READ DIVISIONS
 }
 
 
-void read_repetitions() {
+void read_repetitions(unsigned long now) {
 
   encoder_value += encoder->getValue();
   if (encoder_value != last_encoder_value) {
@@ -169,7 +169,7 @@ void read_repetitions() {
     for (int i = 0 ; i < 4 ; i++) {
       digitalWrite(led_pin[i], bitRead(repetitions_temp - 1, i));
     }
-    led_quantity_time = millis();
+    led_quantity_time = now;
     repetitions_old = repetitions_temp;
 
     //repetition_counter = repetitions_temp - 1 ;
@@ -452,7 +452,7 @@ void handlePulseUp(unsigned long now, bool inCycle) {
   }
 }
 
-void doResync() {
+void doResync(unsigned long now) {
   repetitions = repetitions_temp;
   clock_divided = clock_divided_temp;
   master_clock = master_clock_temp;
@@ -461,7 +461,7 @@ void doResync() {
   read_random();
   read_distribution();
   read_cycle();
-  start_burst_init();
+  start_burst_init(now);
   resync = LOW;
 }
 

@@ -83,8 +83,6 @@ unsigned long clock_divided_temp = 0;            /// we use the temp variables t
 int time_portions = 0;                      /// the linear portions of time depending on clock divided and number of repetitions in the burst. If the distribution is linear this will give us the duration of every repetition.
 /// if it is not linear it will be used to calculate the distribution
 int time_portions_temp = 0;                 /// we use the temp variables to avoid the parameters change during a burst execution
-unsigned long current_time = 0;
-unsigned long old_time = 0;
 
 unsigned long burst_time_start = 0;         /// the moment when the burst start
 unsigned long burst_time_accu = 0;          /// the accumulation of all repetitions times since the burst have started
@@ -230,6 +228,8 @@ void setup() {
 
 void loop() {
 
+  unsigned long current_time = millis();
+
   if ((triggered == HIGH) && (trigger_first_pressed == HIGH))  {    ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
     if (!had_eoc) {
       enableEOC(current_time);
@@ -239,7 +239,8 @@ void loop() {
       repetitions_encoder = repetitions_encoder_temp;
       EEPROM.write(4, repetitions_encoder_temp);
     }
-    doResync();
+
+    doResync(current_time);
 
     trigger_difference = burst_time_start - tempo_tic_temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
     trigger_dif_proportional = (float)master_clock_temp / (float)trigger_difference;
@@ -247,11 +248,10 @@ void loop() {
     had_eoc = false;
   }
 
-  calculate_clock(); // we read the ping in and the encoder button to get : master clock, clock divided and time_portions
+  calculate_clock(current_time); // we read the ping in and the encoder button to get : master clock, clock divided and time_portions
   read_trigger(); // we read the trigger input and the trigger button to see if it is high or low, if it is high and it is the first time it is.
-  read_repetitions(); // we read the number of repetitions in the encoder, we have to attend this process often to avoid missing encoder tics.
+  read_repetitions(current_time); // we read the number of repetitions in the encoder, we have to attend this process often to avoid missing encoder tics.
 
-  current_time = millis();
   handleEOC(current_time, 30);
   handleLEDs(current_time);
 
@@ -260,7 +260,7 @@ void loop() {
       if (repetitions != repetitions_temp) {
         EEPROM.write(4, repetitions_temp);
       }
-      doResync();
+      doResync(current_time);
     }
   }
 
