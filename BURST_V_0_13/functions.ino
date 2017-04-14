@@ -82,8 +82,8 @@ void start_burst_init(unsigned long now) {
       break;
     case DISTRIBUTION_SIGN_NEGATIVE:
       if (repetitions > 1) {
-        elapsed_time_since_prev_repetition_old = fscale(0, clock_divided, 0, clock_divided, time_portions * (repetitions - 1), distribution);
-        elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, time_portions * (repetitions - 2), distribution);
+        elapsed_time_since_prev_repetition_old = fscale(0, clock_divided, 0, clock_divided, time_portions * repetitions, distribution);
+        elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, time_portions * (repetitions - 1), distribution);
         elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
       }
       else {
@@ -375,7 +375,6 @@ void handleEOC(unsigned long now, int width) {
 }
 
 void handlePulseUp(unsigned long now, bool inCycle) {
-  int positionTemp = 0;
   int inputValue;
 
   // pulse up - burst time
@@ -399,24 +398,13 @@ void handlePulseUp(unsigned long now, bool inCycle) {
           case DISTRIBUTION_SIGN_NEGATIVE:
             elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
 
-            positionTemp = repetitions - repetition_counter - 2;
-            if (positionTemp < 0) {
-              inputValue = 0;
-            }
-            else if (positionTemp > 0) {
-              inputValue = time_portions * positionTemp;
-            }
-            else {
-              ; // won't be used
-            }
-            if (positionTemp != 0) {
-              elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, inputValue, distribution);
-              elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
-            }
+            inputValue = time_portions * ((repetitions - 1) - repetition_counter);
+            elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, inputValue, distribution);
+            elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
             break;
           case DISTRIBUTION_SIGN_ZERO:
             elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
-            elapsed_time_since_prev_repetition_new = time_portions *  (repetition_counter + 1);
+            elapsed_time_since_prev_repetition_new = time_portions * (repetition_counter + 1);
             elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_new - elapsed_time_since_prev_repetition_old;
             break;
         }
