@@ -363,6 +363,7 @@ void enableEOC(unsigned long now) {
   digitalWrite(EOC_LED, HIGH);
   digitalWrite(EOC_STATE, LOW);
   in_eoc = true;
+  wants_eoc = false;
   eoc_counter = now;
 }
 
@@ -400,12 +401,10 @@ void handlePulseUp(unsigned long now, bool inCycle) {
 
             inputValue = time_portions * ((repetitions - 1) - repetition_counter);
             if (((repetitions - 1) - repetition_counter) == 0) {
-              elapsed_time_since_prev_repetition_new = elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition = 0; // we're done and just need an EOC
+              wants_eoc = true; // we may not reach the else block below if the next trigger comes too quickly
             }
-            else {
-              elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, inputValue, distribution);
-              elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
-            }
+            elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, inputValue, distribution);
+            elapsed_time_since_prev_repetition = elapsed_time_since_prev_repetition_old - elapsed_time_since_prev_repetition_new;
             break;
           case DISTRIBUTION_SIGN_ZERO:
             elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;

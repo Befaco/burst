@@ -98,6 +98,7 @@ unsigned long elapsed_time_since_prev_repetition_old = 0;           /// the posi
 unsigned long led_quantity_time = 0;        /// time counter used to turn off the led when we are chosing the number of repetitions with the encoder
 
 bool in_eoc = false;
+bool wants_eoc = false;
 unsigned long eoc_counter = 0;              /// a counter to turn off the eoc led and the eoc output
 
 
@@ -230,6 +231,9 @@ void loop() {
   unsigned long current_time = millis();
 
   if ((triggered == HIGH) && (trigger_first_pressed == HIGH))  {    ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
+    if (wants_eoc) {
+      enableEOC(current_time);
+    }
     sub_division_counter = 0;
     if (repetitions_encoder_temp != repetitions_encoder) {
       repetitions_encoder = repetitions_encoder_temp;
