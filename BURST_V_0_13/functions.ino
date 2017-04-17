@@ -157,10 +157,9 @@ void read_repetitions(unsigned long now) {
   }
 
   int cv_quantity_value = analogRead(CV_QUANTITY);
-  cv_quantity_value = map (cv_quantity_value, 0, 1000, 16, -16);
-  repetitions_temp = repetitions_encoder_temp + cv_quantity_value;
-  if (repetitions_temp > MAX_REPETITIONS) repetitions_temp = MAX_REPETITIONS;
-  if (repetitions_temp < 1) repetitions_temp = 1;
+  cv_quantity_value = map (cv_quantity_value, 0, 1023, 15, -16); // 32 steps
+  int temp = (int)repetitions_encoder_temp + cv_quantity_value; // it could be negative, need to cast
+  repetitions_temp = constrain(temp, 1, MAX_REPETITIONS);
 
   if (repetitions_temp != repetitions_old) {
     for (int i = 0 ; i < 4 ; i++) {
@@ -329,7 +328,7 @@ float mapfloat(float x, float in_min, float in_max, float out_min, float out_max
 }
 
 void handleLEDs(unsigned long now) {
-    if ((now >= led_quantity_time + 250) && (no_more_bursts)) {
+  if ((now >= led_quantity_time + 250) && (no_more_bursts)) {
     for (int i = 0 ; i < 4 ; i++) {
       digitalWrite(led_pin[i], bitRead(repetition_counter, i));
     }
