@@ -397,7 +397,7 @@ void handlePulseUp(unsigned long now, bool inCycle) {
             elapsed_time_since_prev_repetition_old = elapsed_time_since_prev_repetition_new;
 
             inputValue = time_portions * ((repetitions - 1) - repetition_counter);
-            if (((repetitions - 1) - repetition_counter) == 0) {
+            if (!inputValue && divisions <= 0) { // no EOC if we're dividing
               wants_eoc = true; // we may not reach the else block below if the next trigger comes too quickly
             }
             elapsed_time_since_prev_repetition_new = fscale(0, clock_divided, 0, clock_divided, inputValue, distribution);
