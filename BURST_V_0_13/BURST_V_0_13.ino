@@ -169,6 +169,9 @@ unsigned long tap_tempo_array[4] = {0, 0, 0, 0};    /// we use this array to sto
 byte max_taps = 0;                                  /// the number of tempo_tics that have been stored in tap_tempo_array[]  (from 0 to 3)
 byte tap_index = 0;                                 /// and index used to know the last tempo_tic stored in the tap_tempo_array[]
 unsigned long averaged_taps = 0;                    /// the sum of all tempo_tic differences
+unsigned long last_time_since_ping = 0;
+
+byte division_wrap = false;
 
 void setup() {
 

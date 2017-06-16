@@ -1,8 +1,6 @@
 void calculate_clock(unsigned long now) {
 
   ////  Read the encoder button state
-
-
   if (digitalRead(PING_BUTTON) == 0 ) {
     bitWrite(encoder_button_state, 0, 1);
   }
@@ -17,23 +15,42 @@ void calculate_clock(unsigned long now) {
     bitWrite(ping_in_state, 0, 0);
   }
 
-
   /// if ping or tap button have raised
   if ((encoder_button_state == 1) || (ping_in_state == 1)) {
-    tempo_tic_temp = now;
-    tap_tempo_array [tap_index] = tempo_tic_temp - old_tempo_tic;
-    averaged_taps = 0;
-    for (int taps = 0 ; taps <= max_taps ; taps ++) {
-      averaged_taps = averaged_taps + tap_tempo_array [taps];
-    }
-    master_clock_temp = averaged_taps / (max_taps + 1);
-    max_taps ++;
-    if (max_taps > 3) max_taps = 3;
-    tap_index ++;
-    if (tap_index > 3) tap_index = 0;
-    old_tempo_tic = tempo_tic_temp;
+    char ignore = false;
+    unsigned long time_since_ping = now - old_tempo_tic;
 
-    calcTimePortions();
+    tempo_tic_temp = now;
+
+    // the PEG does this differently, averaging taps and
+    // using ping in directly. We can do that, too, but
+    // let's get this working properly first.
+
+    // test whether it's an outlier, ignore if so
+    if (max_taps) {
+      if ((time_since_ping > (last_time_since_ping * 2))
+          || (time_since_ping < (last_time_since_ping >> 1)))
+      {
+        ignore = true;
+      }
+    }
+    last_time_since_ping = time_since_ping;
+
+    if (!ignore) {
+      tap_tempo_array[tap_index] = time_since_ping;
+      averaged_taps = 0;
+      for (int taps = 0; taps <= max_taps; taps++) {
+        averaged_taps = averaged_taps + tap_tempo_array[taps];
+      }
+      master_clock_temp = averaged_taps / (max_taps + 1);
+      max_taps++;
+      if (max_taps > 3) max_taps = 3;
+      tap_index++;
+      if (tap_index > 3) tap_index = 0;
+
+      calcTimePortions();
+    }
+    old_tempo_tic = tempo_tic_temp;
 
     if (encoder_button_state == 1) {
       bitWrite(encoder_button_state, 1, 1);
@@ -42,9 +59,9 @@ void calculate_clock(unsigned long now) {
       EEPROM.write(2, (master_clock_temp >> 16) & 0xFF);
       EEPROM.write(3, (master_clock_temp >> 24) & 0xFF);
     }
-
-    if (ping_in_state == 1) bitWrite(ping_in_state, 1, 1);
-
+    if (ping_in_state == 1) {
+      bitWrite(ping_in_state, 1, 1);
+    }
   }
   else if ((triggered == HIGH)) {
     calcTimePortions();
@@ -71,8 +88,6 @@ void start_burst_init(unsigned long now) {
 
   burst_started = HIGH;
   repetition_counter = 0;
-
-  // sub_division_counter = 0;
 
   elapsed_time_since_prev_repetition_old = 0;
   burst_time_accu = 0;
@@ -420,8 +435,7 @@ void handlePulseUp(unsigned long now, bool inCycle) {
           // WE ADJUST THE VALUE OF TEMPO_TIC (FOR THE RESYNC) DEPENDING ON TIME_DIVISIONS AND THE AMOUNT OF SUB-BURSTS DONE
           sub_division_counter++;
           if (divisions <= 0 && sub_division_counter >= -(divisions)) {
-              tempo_tic = tempo_tic_temp;
-              resync = LOW;
+              division_wrap = true;
           }
           read_cycle();
           /// try to mantain proportional difference between ping and trigger, with external clock and cycle, and the clock changes
@@ -449,6 +463,12 @@ void doResync(unsigned long now) {
   read_distribution();
   read_cycle();
   start_burst_init(now);
+  if (division_wrap) {
+    tempo_tic = tempo_tic_temp;
+    sub_division_counter = 0;
+    division_wrap = false;
+    calcTimePortions();
+  }
   resync = LOW;
 }
 
