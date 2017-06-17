@@ -164,12 +164,6 @@ bool resync = 0;                          // active when the resync in cycle can
 byte encoder_button_state = 0;
 unsigned long tempo_tic = 0;                        /// everytime a pulse is received in ping input or the encoder button (tap) is pressed we store the time
 unsigned long tempo_tic_temp = 0;
-unsigned long old_tempo_tic = 0;                    /// previous stored tempo_tic time value
-unsigned long tap_tempo_array[4] = {0, 0, 0, 0};    /// we use this array to store the 4 last tempo_tic values in order to make an average
-byte max_taps = 0;                                  /// the number of tempo_tics that have been stored in tap_tempo_array[]  (from 0 to 3)
-byte tap_index = 0;                                 /// and index used to know the last tempo_tic stored in the tap_tempo_array[]
-unsigned long averaged_taps = 0;                    /// the sum of all tempo_tic differences
-unsigned long last_time_since_ping = 0;
 
 byte division_wrap = false;
 

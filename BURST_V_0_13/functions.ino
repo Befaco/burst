@@ -1,3 +1,14 @@
+#define TAP_TEMPO_AVG_COUNT (2)
+
+unsigned long encoder_last_time = 0;
+unsigned long encoder_taps[TAP_TEMPO_AVG_COUNT] = {0,0};
+unsigned long encoder_duration = 0;
+byte encoder_taps_current = 0;
+byte encoder_taps_total = 0; // 2 means use the duration between encoder_taps[0] and encoder_taps[1]; 3 means average of [0-2]
+
+unsigned long ping_last_time = 0;
+unsigned long ping_duration = 0;
+
 void calculate_clock(unsigned long now) {
 
   ////  Read the encoder button state
@@ -17,49 +28,94 @@ void calculate_clock(unsigned long now) {
 
   /// if ping or tap button have raised
   if ((encoder_button_state == 1) || (ping_in_state == 1)) {
-    char ignore = false;
-    unsigned long time_since_ping = now - old_tempo_tic;
+
+    byte ignore = false;
+    unsigned long duration;
+    unsigned long average;
 
     tempo_tic_temp = now;
 
-    // the PEG does this differently, averaging taps and
-    // using ping in directly. We can do that, too, but
-    // let's get this working properly first.
+    if (encoder_button_state == 1) {
 
-    // test whether it's an outlier, ignore if so
-    if (max_taps) {
-      if ((time_since_ping > (last_time_since_ping * 2))
-          || (time_since_ping < (last_time_since_ping >> 1)))
+      duration = (now - encoder_last_time);
+
+      // this logic is weird, but it works:
+      // if we've stored a duration, test the current duration against the stored
+      //    if that's an outlier, reset everything, incl. the duration, to 0 and ignore
+      //    otherwise, store the duration
+      // if we haven't stored a duration, check whether there's a previous time
+      // (if there isn't we just started up, I guess). And if there's no previous time
+      // store the previous time and ignore. If there is a previous time, store the duration.
+      // Basically, this ensures that outliers start a new tap tempo collection, and that the
+      // first incoming taps are properly handled.
+      if ((encoder_duration && (duration > (encoder_duration * 2) || (duration < (encoder_duration >> 1))))
+        || (!(encoder_duration || encoder_last_time)))
       {
         ignore = true;
+        encoder_taps_current = 0;
+        encoder_taps_total = 0; // reset collection, we had an outlier
+        encoder_duration = 0;
       }
-    }
-    last_time_since_ping = time_since_ping;
-
-    if (!ignore) {
-      tap_tempo_array[tap_index] = time_since_ping;
-      averaged_taps = 0;
-      for (int taps = 0; taps <= max_taps; taps++) {
-        averaged_taps = averaged_taps + tap_tempo_array[taps];
+      else {
+        encoder_duration = duration;
       }
-      master_clock_temp = averaged_taps / (max_taps + 1);
-      max_taps++;
-      if (max_taps > 3) max_taps = 3;
-      tap_index++;
-      if (tap_index > 3) tap_index = 0;
+      encoder_last_time = now;
 
-      calcTimePortions();
-    }
-    old_tempo_tic = tempo_tic_temp;
+      if (!ignore) {
+        encoder_taps[encoder_taps_current++] = duration;
+        if (encoder_taps_current >= TAP_TEMPO_AVG_COUNT) {
+          encoder_taps_current = 0;
+        }
+        encoder_taps_total++;
+        if (encoder_taps_total > TAP_TEMPO_AVG_COUNT) {
+          encoder_taps_total = TAP_TEMPO_AVG_COUNT;
+        }
+        if (encoder_taps_total > 1) { // currently this is 2, but it could change
+          average = 0;
+          for (int i = 0; i < encoder_taps_total; i++) {
+            average += encoder_taps[i];
+          }
+          master_clock_temp = (average / encoder_taps_total);
+        }
+        else {
+          master_clock_temp = encoder_taps[0]; // should be encoder_duration
+        }
+        calcTimePortions();
+      }
 
-    if (encoder_button_state == 1) {
+      // we could do something like -- tapping the encoder will immediately enable the encoder's last tempo
+      // if it has been overridden by the ping input. So you could tap a fast tempo, override it with a slow
+      // ping, pull the ping cable and then tap the encoder to switch back. Similarly, sending a single ping
+      // clock would enable the last ping in tempo. In this way, it would be possible to switch between two
+      // tempi. Not sure if this is a YAGNI feature, but it would be possible.
+
       bitWrite(encoder_button_state, 1, 1);
       EEPROM.write(0, master_clock_temp & 0xFF);
       EEPROM.write(1, (master_clock_temp >> 8) & 0xFF);
       EEPROM.write(2, (master_clock_temp >> 16) & 0xFF);
       EEPROM.write(3, (master_clock_temp >> 24) & 0xFF);
     }
+
     if (ping_in_state == 1) {
+
+      duration = (now - ping_last_time);
+
+      if ((ping_duration && (duration > (ping_duration * 2) || (duration < (ping_duration >> 1))))
+        || (!(ping_duration || ping_last_time)))
+      {
+        ignore = true;
+        ping_duration = 0;
+      }
+      else {
+        ping_duration = duration;
+      }
+      ping_last_time = now;
+
+      if (!ignore) {
+        master_clock_temp = ping_duration;
+        calcTimePortions();
+      }
+
       bitWrite(ping_in_state, 1, 1);
     }
   }
@@ -67,12 +123,13 @@ void calculate_clock(unsigned long now) {
     calcTimePortions();
   }
 
+  // TODO: hold encoder for 2s should stop the ping, like the PEG
+
   if ((encoder_button_state == 2) || (ping_in_state == 2)) {
     bitWrite(encoder_button_state, 1, 0);
     bitWrite(ping_in_state, 1, 0);
   }
 }
-
 
 void read_trigger() {
   bool trigger_cv_state = digitalRead(TRIGGER_STATE);
