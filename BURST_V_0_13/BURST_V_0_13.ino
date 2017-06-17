@@ -105,7 +105,6 @@ unsigned long eoc_counter = 0;              /// a counter to turn off the eoc le
 //    divisions
 int divisions;                            //// value of the time division or the time multiplier
 int divisions_pot;
-int sub_division_counter = 0;
 
 ////// Repetitions
 
@@ -164,8 +163,6 @@ bool resync = 0;                          // active when the resync in cycle can
 byte encoder_button_state = 0;
 unsigned long tempo_tic = 0;                        /// everytime a pulse is received in ping input or the encoder button (tap) is pressed we store the time
 unsigned long tempo_tic_temp = 0;
-
-byte division_wrap = false;
 
 void setup() {
 
@@ -230,7 +227,8 @@ void loop() {
     if (wants_eoc) {
       enableEOC(current_time);
     }
-    sub_division_counter = 0;
+    repetition_counter = 0;
+
     if (repetitions_encoder_temp != repetitions_encoder) {
       repetitions_encoder = repetitions_encoder_temp;
       EEPROM.write(4, repetitions_encoder_temp);
@@ -251,7 +249,15 @@ void loop() {
   handleLEDs(current_time);
 
   if (cycle == HIGH) { // CYCLE ON
-    if ((current_time > (tempo_tic + (clock_divided * sub_division_counter) + trigger_difference)) && resync) { // RESYNC BETWEEN CYCLE AND PING MAINTAINING PHASE bearing in mind the difference, the divisions and the
+    // TODO: investigate to ensure that we don't have drift wrt ping when cycling
+    // It's actually extremely unlikely that we do, but it's worth verifying
+    // However, the use of trigger difference in relation to cycle was not correct, since the
+    // difference is an absolute amount of the entire master_clock, and wasn't being
+    // corrected for mult/div. For now, I'm just ensuring that we've finished a division before
+    // permitting a resync. Otherwise, we need something more complex than the original test.
+    // We'd need to know which is the first burst of any particular cycle and ensure that it triggers
+    // at the proportionally correct time depending on mult/div.
+    if (burst_time_start && (current_time >= (burst_time_start + clock_divided)) && resync) {
       if (repetitions != repetitions_temp) {
         EEPROM.write(4, repetitions_temp);
       }

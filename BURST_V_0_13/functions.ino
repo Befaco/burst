@@ -33,8 +33,6 @@ void calculate_clock(unsigned long now) {
     unsigned long duration;
     unsigned long average;
 
-    tempo_tic_temp = now;
-
     if (encoder_button_state == 1) {
 
       duration = (now - encoder_last_time);
@@ -62,6 +60,7 @@ void calculate_clock(unsigned long now) {
       encoder_last_time = now;
 
       if (!ignore) {
+        tempo_tic_temp = now;
         encoder_taps[encoder_taps_current++] = duration;
         if (encoder_taps_current >= TAP_TEMPO_AVG_COUNT) {
           encoder_taps_current = 0;
@@ -112,6 +111,7 @@ void calculate_clock(unsigned long now) {
       ping_last_time = now;
 
       if (!ignore) {
+        tempo_tic_temp = now;
         master_clock_temp = ping_duration;
         calcTimePortions();
       }
@@ -489,14 +489,9 @@ void handlePulseUp(unsigned long now, bool inCycle) {
 
         if (inCycle) {
           resync = HIGH;
-          // WE ADJUST THE VALUE OF TEMPO_TIC (FOR THE RESYNC) DEPENDING ON TIME_DIVISIONS AND THE AMOUNT OF SUB-BURSTS DONE
-          sub_division_counter++;
-          if (divisions <= 0 && sub_division_counter >= -(divisions)) {
-              division_wrap = true;
-          }
           read_cycle();
-          /// try to mantain proportional difference between ping and trigger, with external clock and cycle, and the clock changes
 
+          /// try to mantain proportional difference between ping and trigger, with external clock and cycle, and the clock changes
           if (master_clock_temp != master_clock) {
             trigger_difference = (float)master_clock_temp / trigger_dif_proportional;
           }
@@ -511,21 +506,29 @@ void handlePulseUp(unsigned long now, bool inCycle) {
 }
 
 void doResync(unsigned long now) {
-  repetitions = repetitions_temp;
-  clock_divided = clock_divided_temp;
-  master_clock = master_clock_temp;
-  time_portions = time_portions_temp;
-  read_division();
+
+  // we are at the start of a new burst
+  read_division(); // get the new value in advance of calcTimePortions();
+
+  if (now >= (tempo_tic + master_clock)) {
+
+    calcTimePortions();
+    repetitions = repetitions_temp;
+    clock_divided = clock_divided_temp;
+    master_clock = master_clock_temp;
+    time_portions = time_portions_temp;
+
+    if (tempo_tic_temp <= tempo_tic) {
+      tempo_tic += master_clock; // advance the clock
+    }
+    else {
+      tempo_tic = tempo_tic_temp;
+    }
+  }
   read_random();
   read_distribution();
   read_cycle();
   start_burst_init(now);
-  if (division_wrap) {
-    tempo_tic = tempo_tic_temp;
-    sub_division_counter = 0;
-    division_wrap = false;
-    calcTimePortions();
-  }
   resync = LOW;
 }
 
