@@ -101,10 +101,10 @@ bool in_eoc = false;
 bool wants_eoc = false;
 unsigned long eoc_counter = 0;              /// a counter to turn off the eoc led and the eoc output
 
-
 //    divisions
 int divisions;                            //// value of the time division or the time multiplier
 int divisions_pot;
+int division_counter = 0;
 
 ////// Repetitions
 
@@ -144,20 +144,19 @@ bool cycle_switch_state = 0;             /// the cycle switch
 bool cycle_in_state = 0;                 /// the cycle input
 bool cycle = 0;                          /// the result of both cycle switch and cycle input
 
-
 /// ping
 byte ping_in_state = 0;
-
 
 /// output
 bool output_state = HIGH;
 
-
 /// flags
-bool burst_started = 0;                   // if the burst is active or not
-bool no_more_bursts = HIGH;               // used for probability to stop bursts, HIGH -> NO repetitions, LOW -> repetitions
+bool burst_started = false;                   // if the burst is active or not
+bool no_more_bursts = true;               // used for probability to stop bursts, HIGH -> NO repetitions, LOW -> repetitions
 bool first_burst = 0;                     // high if we are in the first repetition, LOW if we are in any of the other repetitions
-bool resync = 0;                          // active when the resync in cycle can be done
+
+bool recycle = 0;     // recycle = start a new burst within a set of bursts (mult)
+bool resync = 0;      // resync = start a new burst, but ensure that we're correctly phased
 
 //// encoder button and tap tempo
 byte encoder_button_state = 0;
@@ -235,6 +234,7 @@ void loop() {
     }
 
     doResync(current_time);
+    start_burst_init(current_time);
 
     trigger_difference = burst_time_start - tempo_tic_temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
     trigger_dif_proportional = (float)master_clock_temp / (float)trigger_difference;
@@ -257,11 +257,15 @@ void loop() {
     // permitting a resync. Otherwise, we need something more complex than the original test.
     // We'd need to know which is the first burst of any particular cycle and ensure that it triggers
     // at the proportionally correct time depending on mult/div.
-    if (burst_time_start && (current_time >= (burst_time_start + clock_divided)) && resync) {
-      if (repetitions != repetitions_temp) {
-        EEPROM.write(4, repetitions_temp);
+    if (recycle) {
+      // this means that we need to re-cycle
+      if (resync && (current_time >= (tempo_tic + master_clock + trigger_difference))) {
+        if (repetitions != repetitions_temp) {
+          EEPROM.write(4, repetitions_temp);
+        }
+        doResync(current_time);
       }
-      doResync(current_time);
+      start_burst_init(current_time);
     }
   }
 

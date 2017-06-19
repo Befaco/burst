@@ -143,13 +143,14 @@ void start_burst_init(unsigned long now) {
   digitalWrite (OUT_STATE, LOW);
   digitalWrite (OUT_LED, LOW);
 
-  burst_started = HIGH;
+  burst_started = true;
   repetition_counter = 0;
 
   elapsed_time_since_prev_repetition_old = 0;
   burst_time_accu = 0;
   output_state = HIGH;
   first_burst = HIGH;
+  recycle = false;
 
   switch (distribution_sign) {
     case DISTRIBUTION_SIGN_POSITIVE:
@@ -408,14 +409,14 @@ void handleLEDs(unsigned long now) {
 }
 
 void handlePulseDown(unsigned long now) {
-  if ((output_state == HIGH) && (burst_started == HIGH)) {
+  if ((output_state == HIGH) && (burst_started == true)) {
     if (now >= (burst_time_start + burst_time_accu + 2)) {
       output_state = !output_state;
       digitalWrite(OUT_STATE, !(output_state * no_more_bursts));
       digitalWrite(OUT_LED, (output_state * no_more_bursts));
       random_dif = random_pot - random(1023);
       if ((first_burst == HIGH) && (random_dif <= 0) && trigger_button_state) {
-        no_more_bursts = LOW;
+        no_more_bursts = false;
       }
       first_burst = LOW;
     }
@@ -447,7 +448,7 @@ void handlePulseUp(unsigned long now, bool inCycle) {
   int inputValue;
 
   // pulse up - burst time
-  if ((output_state == LOW) && (burst_started == HIGH)) {
+  if ((output_state == LOW) && (burst_started == true)) {
     if (now >= (burst_time_start + elapsed_time_since_prev_repetition + burst_time_accu)) { // time for a repetition
 
       if (repetition_counter < repetitions - 1) { // is it the last repetition?
@@ -481,19 +482,20 @@ void handlePulseUp(unsigned long now, bool inCycle) {
             break;
         }
       }
-      else { // it's the end of the burst
+      else { // it's the end of the burst, but not necessarily the end of a set of bursts (mult)
         enableEOC(now);
 
-        no_more_bursts = HIGH;
-        burst_started = LOW;
+        no_more_bursts = true;
+        burst_started = false;
 
         if (inCycle) {
-          resync = HIGH;
+          recycle = true;
+          division_counter++;
           read_cycle();
 
-          /// try to mantain proportional difference between ping and trigger, with external clock and cycle, and the clock changes
-          if (master_clock_temp != master_clock) {
-            trigger_difference = (float)master_clock_temp / trigger_dif_proportional;
+          if (divisions >= 0 || division_counter >= -(divisions)) {
+            resync = true;
+            division_counter = 0;
           }
         }
 
@@ -510,26 +512,30 @@ void doResync(unsigned long now) {
   // we are at the start of a new burst
   read_division(); // get the new value in advance of calcTimePortions();
 
-  if (now >= (tempo_tic + master_clock)) {
+  calcTimePortions();
 
-    calcTimePortions();
-    repetitions = repetitions_temp;
-    clock_divided = clock_divided_temp;
+  // try to mantain proportional difference between ping and trigger
+  // with external clock and cycle, and the clock changes
+  if (master_clock_temp != master_clock) {
+    trigger_difference = (float)master_clock_temp / trigger_dif_proportional;
     master_clock = master_clock_temp;
-    time_portions = time_portions_temp;
-
-    if (tempo_tic_temp <= tempo_tic) {
-      tempo_tic += master_clock; // advance the clock
-    }
-    else {
-      tempo_tic = tempo_tic_temp;
-    }
   }
+
+  repetitions = repetitions_temp;
+  clock_divided = clock_divided_temp;
+  time_portions = time_portions_temp;
+
+  if (tempo_tic_temp <= tempo_tic) {
+    tempo_tic += master_clock; // advance the clock
+  }
+  else {
+    tempo_tic = tempo_tic_temp;
+  }
+
   read_random();
   read_distribution();
   read_cycle();
-  start_burst_init(now);
-  resync = LOW;
+  resync = false;
 }
 
 void calcTimePortions() {
