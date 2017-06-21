@@ -24,7 +24,7 @@
 
 ///////////////// LIBRARYS
 
-#include "DebugUtils.h"
+#include "DebugUtils.h" // <- DEBUG define in here
 #include <ClickEncoder.h>
 #include <EEPROM.h>
 #include <TimerOne.h>
@@ -164,8 +164,10 @@ unsigned long tempoTic_Temp = 0;
 void setup()
 {
   //// remove to activate TEMPO_LED and OUT_LED
-  // Serial.begin(9600);
-  // Serial.println("HOLA");
+#ifdef DEBUG
+  Serial.begin(9600);
+  Serial.println("HOLA");
+#endif
 
   /// Encoder
   encoder = new ClickEncoder(ENCODER_2, ENCODER_1, 3);
@@ -199,9 +201,9 @@ void setup()
     pinMode(ledPin[i], OUTPUT);
   }
 
-  masterClock = (EEPROM.read(0) & 0xff) + (((long)EEPROM.read(1) << 8) & 0xffff) +
-                (((long)EEPROM.read(2) << 16) & 0xffffff) +
-                (((long)EEPROM.read(3) << 24) & 0xffffffff);
+  masterClock = (EEPROM.read(0) & 0xff) + (((long)EEPROM.read(1) << 8) & 0xff00) +
+                (((long)EEPROM.read(2) << 16) & 0xff0000) +
+                (((long)EEPROM.read(3) << 24) & 0xff000000);
   masterClock_Temp = masterClock;
   repetitions = EEPROM.read(4);
   if (repetitions < 1) {
@@ -236,11 +238,14 @@ void loop()
     while (triggerDifference < 0) {
       triggerDifference += masterClock_Temp;
     }
-    while (triggerDifference > masterClock_Temp) {
+    while (triggerDifference >= masterClock_Temp) {
       triggerDifference -= masterClock_Temp;
     }
-    triggerDifProportional = triggerDifference ? ((float)masterClock_Temp / (float)triggerDifference) : 0;
+    triggerDifProportional = masterClock_Temp ? ((float)triggerDifference / (float)masterClock_Temp) : 0;
     triggered = triggerFirstPressed = LOW;
+#ifdef DEBUG
+    printDouble(triggerDifProportional, 100);
+#endif
 
     doResync(currentTime);
     startBurstInit(currentTime);

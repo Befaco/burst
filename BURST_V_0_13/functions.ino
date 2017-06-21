@@ -77,6 +77,7 @@ void calculateClock(unsigned long now)
         else {
           masterClock_Temp = encoderTaps[0]; // should be encoderDuration
         }
+        SERIAL_PRINTLN("%d: %lu", encoderTapsTotal, masterClock_Temp);
         calcTimePortions();
       }
 
@@ -585,7 +586,7 @@ void doResync(unsigned long now)
   // try to mantain proportional difference between ping and trigger
   // with external clock and cycle, and the clock changes
   if (masterClock_Temp != masterClock) {
-    triggerDifference = (float)masterClock_Temp / triggerDifProportional;
+    triggerDifference = (float)masterClock_Temp * triggerDifProportional;
     masterClock = masterClock_Temp;
   }
 
