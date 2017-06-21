@@ -451,7 +451,6 @@ void handlePulseDown(unsigned long now)
         noMoreBursts = false;
       }
       firstBurst = LOW;
-      burstTimeStart = burstTimeStart;
     }
   }
 }
