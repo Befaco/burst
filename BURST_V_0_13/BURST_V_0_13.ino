@@ -29,6 +29,9 @@
 #include <EEPROM.h>
 #include <TimerOne.h>
 
+// SET TO 0 to revert to standard behavior (EOC LED shows EOC)
+#define EOC_LED_IS_TEMPO 1
+
 ///////////////// PIN DEFINITIONS
 
 ////// ANALOG INS
@@ -52,7 +55,7 @@
 
 ////// DIGITAL OUTS
 
-#define EOC_LED         0
+#define TEMPO_LED       0
 #define OUT_LED         1
 #define OUT_STATE       7
 #define EOC_STATE       9
@@ -73,13 +76,13 @@ void timerIsr()
 
 // tempo and counters
 unsigned long masterClock = 0;             /// the master clock is the result of averaged time of ping input or encoder button
-unsigned long masterClockTemp = 0;        /// we use the temp variables to avoid the parameters change during a burst execution
+unsigned long masterClock_Temp = 0;        /// we use the temp variables to avoid the parameters change during a burst execution
 unsigned long clockDivided = 0;            /// the result of div/mult the master clock depending on the div/mult potentiometer/input
-unsigned long clockDividedTemp = 0;            /// we use the temp variables to avoid the parameters change during a burst execution
+unsigned long clockDivided_Temp = 0;            /// we use the temp variables to avoid the parameters change during a burst execution
 
 int timePortions = 0;                      /// the linear portions of time depending on clock divided and number of repetitions in the burst. if the distribution is linear this will give us the duration of every repetition.
 /// if it is not linear it will be used to calculate the distribution
-int timePortionsTemp = 0;                 /// we use the temp variables to avoid the parameters change during a burst execution
+int timePortions_Temp = 0;                 /// we use the temp variables to avoid the parameters change during a burst execution
 
 unsigned long burstTimeStart = 0;         /// the moment when the burst start
 unsigned long burstTimeAccu = 0;          /// the accumulation of all repetitions times since the burst have started
@@ -100,7 +103,6 @@ unsigned long eocCounter = 0;              /// a counter to turn off the eoc led
 
 //    divisions
 int divisions;                            //// value of the time division or the time multiplier
-int divisionsPot;
 int divisionCounter = 0;
 
 ////// Repetitions
@@ -109,16 +111,15 @@ int divisionCounter = 0;
 
 byte repetitions = 1;                       /// number of repetitions
 byte repetitionsOld = 1;
-byte repetitionsTemp = 1;                  /// temporal value that adds the number of repetitions in the encoder and the number number added by the cv quantity input
+byte repetitions_Temp = 1;                  /// temporal value that adds the number of repetitions in the encoder and the number number added by the cv quantity input
 byte repetitionsEncoder = 0;
-byte repetitionsEncoderTemp = 0;
+byte repetitionsEncoder_Temp = 0;
 
 ///// Random
 int randomPot = 0;
 int randomDif = 0;
 
 ///// Distribution
-int distributionPot = 0;
 enum {
   DISTRIBUTION_SIGN_NEGATIVE = 0,
   DISTRIBUTION_SIGN_POSITIVE = 1,
@@ -131,7 +132,7 @@ float distributionIndexArray [9];       /// used to calculate the position of th
 int curve = 5;                            /// the curved we apply to the  pow function to calculate the distribution of repetitions
 
 //// Trigger
-uint8_t TRIGGER_BUTTONState = LOW;           /// the trigger button
+uint8_t TriggerButtonState = LOW;           /// the trigger button
 bool triggered = false;                        /// the result of both trigger button and trigger input
 long triggerDifference = 0;            /// the time difference between the trigger and the ping
 bool triggerFirstPressed = 0;
@@ -158,13 +159,13 @@ bool resync = 0;      // resync = start a new burst, but ensure that we're corre
 //// encoder button and tap tempo
 byte encoderButtonState = 0;
 unsigned long tempoTic = 0;                        /// everytime a pulse is received in ping input or the encoder button (tap) is pressed we store the time
-unsigned long tempoTicTemp = 0;
+unsigned long tempoTic_Temp = 0;
 
 void setup()
 {
-  //// remove to activate EOC_LED and OUT_LED
-  //Serial.begin(9600);
-  //Serial.println("HOLA");
+  //// remove to activate TEMPO_LED and OUT_LED
+  // Serial.begin(9600);
+  Serial.println("HOLA");
 
   /// Encoder
   encoder = new ClickEncoder(ENCODER_2, ENCODER_1, 3);
@@ -183,7 +184,7 @@ void setup()
   pinMode (TRIGGER_BUTTON, INPUT_PULLUP);
   pinMode (PING_BUTTON, INPUT_PULLUP);
 
-  pinMode (EOC_LED, OUTPUT);
+  pinMode (TEMPO_LED, OUTPUT);
   pinMode (OUT_LED, OUTPUT);
 
   pinMode (OUT_STATE, OUTPUT);
@@ -201,16 +202,16 @@ void setup()
   masterClock = (EEPROM.read(0) & 0xff) + (((long)EEPROM.read(1) << 8) & 0xffff) +
                 (((long)EEPROM.read(2) << 16) & 0xffffff) +
                 (((long)EEPROM.read(3) << 24) & 0xffffffff);
-  masterClockTemp = masterClock;
+  masterClock_Temp = masterClock;
   repetitions = EEPROM.read(4);
   if (repetitions < 1) {
     repetitions = 1;
   }
 
-  repetitionsTemp = repetitions;
+  repetitions_Temp = repetitions;
   repetitionsOld = repetitions;
   repetitionsEncoder = repetitions;
-  repetitionsEncoderTemp = repetitions;
+  repetitionsEncoder_Temp = repetitions;
 
   readDivision();
   calcTimePortions();
@@ -226,16 +227,16 @@ void loop()
     }
     repetitionCounter = 0;
 
-    if (repetitionsEncoderTemp != repetitionsEncoder) {
-      repetitionsEncoder = repetitionsEncoderTemp;
-      EEPROM.write(4, repetitionsEncoderTemp);
+    if (repetitionsEncoder_Temp != repetitionsEncoder) {
+      repetitionsEncoder = repetitionsEncoder_Temp;
+      EEPROM.write(4, repetitionsEncoder_Temp);
     }
 
     doResync(currentTime);
     startBurstInit(currentTime);
 
-    triggerDifference = burstTimeStart - tempoTicTemp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
-    triggerDifProportional = (float)masterClockTemp / (float)triggerDifference;
+    triggerDifference = burstTimeStart - tempoTic_Temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
+    triggerDifProportional = triggerDifference ? ((float)masterClock_Temp / (float)triggerDifference) : 0;
     triggered = triggerFirstPressed = LOW;
   }
 
@@ -245,6 +246,13 @@ void loop()
 
   handleEOC(currentTime, 30);
   handleLEDs(currentTime);
+
+  // do this before cycle resync
+  handlePulseDown(currentTime);
+  handlePulseUp(currentTime, cycle);
+#if EOC_LED_IS_TEMPO
+  handleTempo(currentTime);
+#endif
 
   if (cycle == HIGH) { // CYCLE ON
     // TODO: investigate to ensure that we don't have drift wrt ping when cycling
@@ -257,16 +265,15 @@ void loop()
     // at the proportionally correct time depending on mult/div.
     if (recycle) {
       // this means that we need to re-cycle
-      if (resync && (currentTime >= (tempoTic + masterClock + triggerDifference))) {
-        if (repetitions != repetitionsTemp) {
-          EEPROM.write(4, repetitionsTemp);
+      if (resync) {
+        if (currentTime >= (tempoTic + masterClock + triggerDifference)) {
+          if (repetitions != repetitions_Temp) {
+            EEPROM.write(4, repetitions_Temp);
+          }
+          doResync(currentTime);
         }
-        doResync(currentTime);
       }
       startBurstInit(currentTime);
     }
   }
-
-  handlePulseDown(currentTime);
-  handlePulseUp(currentTime, cycle);
 }

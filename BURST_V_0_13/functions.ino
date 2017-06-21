@@ -58,7 +58,7 @@ void calculateClock(unsigned long now)
       encoderLastTime = now;
 
       if (!ignore) {
-        tempoTicTemp = now;
+        tempoTic_Temp = now;
         encoderTaps[encoderTapsCurrent++] = duration;
         if (encoderTapsCurrent >= TAP_TEMPO_AVG_COUNT) {
           encoderTapsCurrent = 0;
@@ -72,10 +72,10 @@ void calculateClock(unsigned long now)
           for (int i = 0; i < encoderTapsTotal; i++) {
             average += encoderTaps[i];
           }
-          masterClockTemp = (average / encoderTapsTotal);
+          masterClock_Temp = (average / encoderTapsTotal);
         }
         else {
-          masterClockTemp = encoderTaps[0]; // should be encoderDuration
+          masterClock_Temp = encoderTaps[0]; // should be encoderDuration
         }
         calcTimePortions();
       }
@@ -87,10 +87,10 @@ void calculateClock(unsigned long now)
       // tempi. Not sure if this is a YAGNI feature, but it would be possible.
 
       bitWrite(encoderButtonState, 1, 1);
-      EEPROM.write(0, masterClockTemp & 0xff);
-      EEPROM.write(1, (masterClockTemp >> 8) & 0xff);
-      EEPROM.write(2, (masterClockTemp >> 16) & 0xff);
-      EEPROM.write(3, (masterClockTemp >> 24) & 0xff);
+      EEPROM.write(0, masterClock_Temp & 0xff);
+      EEPROM.write(1, (masterClock_Temp >> 8) & 0xff);
+      EEPROM.write(2, (masterClock_Temp >> 16) & 0xff);
+      EEPROM.write(3, (masterClock_Temp >> 24) & 0xff);
     }
 
     if (pingInState == 1) {
@@ -107,8 +107,8 @@ void calculateClock(unsigned long now)
       pingLastTime = now;
 
       if (!ignore) {
-        tempoTicTemp = now;
-        masterClockTemp = pingDuration;
+        tempoTic_Temp = now;
+        masterClock_Temp = pingDuration;
         calcTimePortions();
       }
 
@@ -130,8 +130,8 @@ void calculateClock(unsigned long now)
 void readTrigger()
 {
   bool triggerCvState = digitalRead(TRIGGER_STATE);
-  TRIGGER_BUTTONState = digitalRead(TRIGGER_BUTTON);
-  triggered = !(TRIGGER_BUTTONState && triggerCvState);
+  TriggerButtonState = digitalRead(TRIGGER_BUTTON);
+  triggered = !(TriggerButtonState && triggerCvState);
   if (triggered == LOW) {
     triggerFirstPressed = HIGH;
   }
@@ -193,7 +193,7 @@ void startBurstInit(unsigned long now)
 
 void readDivision()                                    //// read divisions
 {
-  divisionsPot = analogRead(CV_DIVISIONS);
+  int divisionsPot = analogRead(CV_DIVISIONS);
 
   switch (divisionsPot) {
   case 0 ... 105:
@@ -224,6 +224,7 @@ void readDivision()                                    //// read divisions
     divisions = 5;
     break;
   }
+  // SERIAL_PRINTLN("divisionsPot %d", divisionsPot);
 }
 
 void readRepetitions(unsigned long now)
@@ -233,17 +234,17 @@ void readRepetitions(unsigned long now)
     lastEncoderValue = encoderValue;
     if (encoderValue >= 4) {
       encoderValue = 0;
-      repetitionsEncoderTemp++;
-      if (repetitionsEncoderTemp > MAX_REPETITIONS) {
-        repetitionsEncoderTemp = MAX_REPETITIONS;
+      repetitionsEncoder_Temp++;
+      if (repetitionsEncoder_Temp > MAX_REPETITIONS) {
+        repetitionsEncoder_Temp = MAX_REPETITIONS;
       }
       //  calculateDistribution = HIGH;
     }
     if (encoderValue <= -4) {
       encoderValue = 0;
-      repetitionsEncoderTemp--;
-      if (repetitionsEncoderTemp < 1) {
-        repetitionsEncoderTemp = 1;
+      repetitionsEncoder_Temp--;
+      if (repetitionsEncoder_Temp < 1) {
+        repetitionsEncoder_Temp = 1;
       }
       //calculateDistribution = HIGH;
     }
@@ -251,28 +252,31 @@ void readRepetitions(unsigned long now)
 
   int cvQuantityValue = analogRead(CV_QUANTITY);
   cvQuantityValue = map (cvQuantityValue, 0, 1023, 15, -16); // 32 steps
-  int temp = (int)repetitionsEncoderTemp + cvQuantityValue; // it could be negative, need to cast
-  repetitionsTemp = constrain(temp, 1, MAX_REPETITIONS);
+  int temp = (int)repetitionsEncoder_Temp + cvQuantityValue; // it could be negative, need to cast
+  repetitions_Temp = constrain(temp, 1, MAX_REPETITIONS);
 
-  if (repetitionsTemp != repetitionsOld) {
+  if (repetitions_Temp != repetitionsOld) {
     for (int i = 0; i < 4; i++) {
-      digitalWrite(ledPin[i], bitRead(repetitionsTemp - 1, i));
+      digitalWrite(ledPin[i], bitRead(repetitions_Temp - 1, i));
     }
     ledQuantityTime = now;
-    repetitionsOld = repetitionsTemp;
+    repetitionsOld = repetitions_Temp;
 
-    //repetitionCounter = repetitionsTemp - 1 ;
+    //repetitionCounter = repetitions_Temp - 1 ;
   }
 }
 
 void readRandom()
 {
   randomPot = analogRead(CV_PROBABILITY);
+  // SERIAL_PRINTLN("randomPot %d", randomPot);
 }
 
 void readDistribution()
 {
-  distributionPot = analogRead(CV_DISTRIBUTION);
+  int distributionPot = analogRead(CV_DISTRIBUTION);
+
+  // SERIAL_PRINTLN("distributionPot %d", distributionPot);
   switch (distributionPot) {
   case -1 ... 56:
     distribution = distributionIndexArray [8];
@@ -443,11 +447,28 @@ void handlePulseDown(unsigned long now)
       digitalWrite(OUT_STATE, !(outputState * noMoreBursts));
       digitalWrite(OUT_LED, (outputState * noMoreBursts));
       randomDif = randomPot - random(1023);
-      if ((firstBurst == HIGH) && (randomDif <= 0) && TRIGGER_BUTTONState) {
+      if ((firstBurst == HIGH) && (randomDif <= 0) && TriggerButtonState) {
         noMoreBursts = false;
       }
       firstBurst = LOW;
     }
+  }
+}
+
+void handleTempo(unsigned long now)
+{
+  static bool inTempo = false;
+
+  // SERIAL_PRINTLN("now %lu tempoTic %lu inTempo %d", now, tempoTic, inTempo);
+  if ((now >= tempoTic) && (now < tempoTic + 100)) {
+    if (!inTempo) {
+      digitalWrite(TEMPO_LED, HIGH);
+    }
+    inTempo = true;
+  }
+  else if (inTempo) {
+    digitalWrite(TEMPO_LED, LOW);
+    inTempo = false;
   }
 }
 
@@ -458,7 +479,9 @@ void enableEOC(unsigned long now)
     handleEOC(now, 0); // turn off the EOC if necessary
   }
   // turn it (back) on
+#if !EOC_LED_IS_TEMPO
   digitalWrite(EOC_LED, HIGH);
+#endif
   digitalWrite(EOC_STATE, LOW);
   inEoc = true;
   wantsEoc = false;
@@ -468,7 +491,9 @@ void enableEOC(unsigned long now)
 void handleEOC(unsigned long now, int width)
 {
   if (inEoc && now >= eocCounter + width) {
+#if !EOC_LED_IS_TEMPO
     digitalWrite(EOC_LED, LOW);
+#endif
     digitalWrite(EOC_STATE, HIGH);
     inEoc = false;
   }
@@ -481,11 +506,12 @@ void handlePulseUp(unsigned long now, bool inCycle)
   // pulse up - burst time
   if ((outputState == LOW) && (burstStarted == true)) {
     if (now >= (burstTimeStart + elapsedTimeSincePrevRepetition + burstTimeAccu)) { // time for a repetition
+      outputState = !outputState;
+      digitalWrite(OUT_STATE, !(outputState * noMoreBursts));
+      digitalWrite(OUT_LED, (outputState * noMoreBursts));
+      burstTimeAccu += elapsedTimeSincePrevRepetition;
+
       if (repetitionCounter < repetitions - 1) { // is it the last repetition?
-        outputState = !outputState;
-        digitalWrite(OUT_STATE, !(outputState * noMoreBursts));
-        digitalWrite(OUT_LED, (outputState * noMoreBursts));
-        burstTimeAccu += elapsedTimeSincePrevRepetition;
         repetitionCounter++;
 
         switch (distributionSign) {
@@ -531,11 +557,11 @@ void handlePulseUp(unsigned long now, bool inCycle)
         noMoreBursts = true;
         burstStarted = false;
 
+        readCycle();
+
         if (inCycle) {
           recycle = true;
           divisionCounter++;
-          readCycle();
-
           if (divisions >= 0 || divisionCounter >= -(divisions)) {
             resync = true;
             divisionCounter = 0;
@@ -554,26 +580,24 @@ void doResync(unsigned long now)
 {
   // we are at the start of a new burst
   readDivision(); // get the new value in advance of calctimeportions();
-
   calcTimePortions();
 
   // try to mantain proportional difference between ping and trigger
   // with external clock and cycle, and the clock changes
-  if (masterClockTemp != masterClock) {
-    triggerDifference = (float)masterClockTemp / triggerDifProportional;
-    masterClock = masterClockTemp;
+  if (masterClock_Temp != masterClock) {
+    triggerDifference = (float)masterClock_Temp / triggerDifProportional;
+    masterClock = masterClock_Temp;
   }
 
-  repetitions = repetitionsTemp;
-  clockDivided = clockDividedTemp;
-  timePortions = timePortionsTemp;
+  repetitions = repetitions_Temp;
+  clockDivided = clockDivided_Temp;
+  timePortions = timePortions_Temp;
 
-  if (tempoTicTemp <= tempoTic) {
-    tempoTic += masterClock; // advance the clock
+  // ensure that the clock advances
+  while (tempoTic_Temp + triggerDifference <= now) {
+    tempoTic_Temp += masterClock;
   }
-  else {
-    tempoTic = tempoTicTemp;
-  }
+  tempoTic = tempoTic_Temp;
 
   readRandom();
   readDistribution();
@@ -584,13 +608,13 @@ void doResync(unsigned long now)
 void calcTimePortions()
 {
   if (divisions > 0) {
-    clockDividedTemp = masterClockTemp * divisions;
+    clockDivided_Temp = masterClock_Temp * divisions;
   }
   else if (divisions < 0) {
-    clockDividedTemp = masterClockTemp / (-divisions);
+    clockDivided_Temp = masterClock_Temp / (-divisions);
   }
   else if (divisions == 0) {
-    clockDividedTemp = masterClockTemp;
+    clockDivided_Temp = masterClock_Temp;
   }
-  timePortionsTemp = clockDividedTemp / repetitionsTemp;
+  timePortions_Temp = clockDivided_Temp / repetitions_Temp;
 }
