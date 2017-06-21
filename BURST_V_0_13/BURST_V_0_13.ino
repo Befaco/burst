@@ -165,7 +165,7 @@ void setup()
 {
   //// remove to activate TEMPO_LED and OUT_LED
   // Serial.begin(9600);
-  Serial.println("HOLA");
+  // Serial.println("HOLA");
 
   /// Encoder
   encoder = new ClickEncoder(ENCODER_2, ENCODER_1, 3);
@@ -232,12 +232,18 @@ void loop()
       EEPROM.write(4, repetitionsEncoder_Temp);
     }
 
-    doResync(currentTime);
-    startBurstInit(currentTime);
-
-    triggerDifference = burstTimeStart - tempoTic_Temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
+    triggerDifference = currentTime - tempoTic_Temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
+    while (triggerDifference < 0) {
+      triggerDifference += masterClock_Temp;
+    }
+    while (triggerDifference > masterClock_Temp) {
+      triggerDifference -= masterClock_Temp;
+    }
     triggerDifProportional = triggerDifference ? ((float)masterClock_Temp / (float)triggerDifference) : 0;
     triggered = triggerFirstPressed = LOW;
+
+    doResync(currentTime);
+    startBurstInit(currentTime);
   }
 
   calculateClock(currentTime); // we read the ping in and the encoder button to get : master clock, clock divided and timePortions

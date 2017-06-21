@@ -451,6 +451,7 @@ void handlePulseDown(unsigned long now)
         noMoreBursts = false;
       }
       firstBurst = LOW;
+      burstTimeStart = burstTimeStart;
     }
   }
 }
@@ -506,12 +507,12 @@ void handlePulseUp(unsigned long now, bool inCycle)
   // pulse up - burst time
   if ((outputState == LOW) && (burstStarted == true)) {
     if (now >= (burstTimeStart + elapsedTimeSincePrevRepetition + burstTimeAccu)) { // time for a repetition
-      outputState = !outputState;
-      digitalWrite(OUT_STATE, !(outputState * noMoreBursts));
-      digitalWrite(OUT_LED, (outputState * noMoreBursts));
-      burstTimeAccu += elapsedTimeSincePrevRepetition;
-
       if (repetitionCounter < repetitions - 1) { // is it the last repetition?
+        outputState = !outputState;
+        digitalWrite(OUT_STATE, !(outputState * noMoreBursts));
+        digitalWrite(OUT_LED, (outputState * noMoreBursts));
+        burstTimeAccu += elapsedTimeSincePrevRepetition;
+
         repetitionCounter++;
 
         switch (distributionSign) {
