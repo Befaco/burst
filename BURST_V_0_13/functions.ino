@@ -12,7 +12,7 @@ unsigned long pingDuration = 0;
 void calculateClock(unsigned long now)
 {
   ////  Read the encoder button state
-  if (digitalRead(PING_BUTTON) == 0) {
+  if (digitalRead(ENCODER_BUTTON) == 0) {
     bitWrite(encoderButtonState, 0, 1);
   }
   else {
@@ -77,8 +77,10 @@ void calculateClock(unsigned long now)
         else {
           masterClock_Temp = encoderTaps[0]; // should be encoderDuration
         }
-        SERIAL_PRINTLN("%d: %lu", encoderTapsTotal, masterClock_Temp);
         calcTimePortions();
+        if (!masterClock) {
+          masterClock = masterClock_Temp;
+        }
       }
 
       // we could do something like -- tapping the encoder will immediately enable the encoder's last tempo
@@ -111,8 +113,10 @@ void calculateClock(unsigned long now)
         tempoTic_Temp = now;
         masterClock_Temp = pingDuration;
         calcTimePortions();
+        if (!masterClock) {
+          masterClock = masterClock_Temp;
+        }
       }
-
       bitWrite(pingInState, 1, 1);
     }
   }
@@ -120,10 +124,15 @@ void calculateClock(unsigned long now)
     calcTimePortions();
   }
 
-  // TODO: hold encoder for 2s should stop the ping, like the PEG
-
-  if ((encoderButtonState == 2) || (pingInState == 2)) {
+  if (encoderButtonState == 3 && encoderLastTime && (now - encoderLastTime) > 2000) {
+    masterClock_Temp = 0;
+    encoderDuration = 0;
+    encoderLastTime = 0;
+  }
+  if (encoderButtonState == 2) {
     bitWrite(encoderButtonState, 1, 0);
+  }
+  if (pingInState == 2) {
     bitWrite(pingInState, 1, 0);
   }
 }
@@ -131,8 +140,9 @@ void calculateClock(unsigned long now)
 void readTrigger()
 {
   bool triggerCvState = digitalRead(TRIGGER_STATE);
-  TriggerButtonState = digitalRead(TRIGGER_BUTTON);
-  triggered = !(TriggerButtonState && triggerCvState);
+  bounce.update();
+  triggerButtonState = bounce.read();
+  triggered = !(triggerButtonState && triggerCvState);
   if (triggered == LOW) {
     triggerFirstPressed = HIGH;
   }
@@ -141,17 +151,23 @@ void readTrigger()
 void startBurstInit(unsigned long now)
 {
   burstTimeStart = now;
-  digitalWrite (OUT_STATE, LOW);
-  digitalWrite (OUT_LED, LOW);
+  burstStarted = HIGH;
+  recycle = false;
 
-  burstStarted = true;
   repetitionCounter = 0;
-
   elapsedTimeSincePrevRepetitionOld = 0;
   burstTimeAccu = 0;
+
+  // enable the output so that we continue to count the repetitions,
+  // whether we actually write to the output pin or not
   outputState = HIGH;
-  firstBurst = HIGH;
-  recycle = false;
+
+  int randomDif = randomPot - random(1023);
+  if (randomDif <= 0 && triggerButtonState) {
+    noMoreBursts = LOW;
+  }
+  digitalWrite(OUT_STATE, !noMoreBursts);
+  digitalWrite(OUT_LED, noMoreBursts);
 
   switch (distributionSign) {
   case DISTRIBUTION_SIGN_POSITIVE:
@@ -195,6 +211,8 @@ void startBurstInit(unsigned long now)
 void readDivision()                                    //// read divisions
 {
   int divisionsPot = analogRead(CV_DIVISIONS);
+  divisionsPot = map(constrain(divisionsPot, 30, 993), 30, 993, 0, 1023);
+  // SERIAL_PRINTLN("divisionsPot %d", divisionsPot);
 
   switch (divisionsPot) {
   case 0 ... 105:
@@ -225,7 +243,6 @@ void readDivision()                                    //// read divisions
     divisions = 5;
     break;
   }
-  // SERIAL_PRINTLN("divisionsPot %d", divisionsPot);
 }
 
 void readRepetitions(unsigned long now)
@@ -236,23 +253,17 @@ void readRepetitions(unsigned long now)
     if (encoderValue >= 4) {
       encoderValue = 0;
       repetitionsEncoder_Temp++;
-      if (repetitionsEncoder_Temp > MAX_REPETITIONS) {
-        repetitionsEncoder_Temp = MAX_REPETITIONS;
-      }
-      //  calculateDistribution = HIGH;
     }
-    if (encoderValue <= -4) {
+    else if (encoderValue <= -4) {
       encoderValue = 0;
       repetitionsEncoder_Temp--;
-      if (repetitionsEncoder_Temp < 1) {
-        repetitionsEncoder_Temp = 1;
-      }
-      //calculateDistribution = HIGH;
     }
   }
+  repetitionsEncoder_Temp = constrain(repetitionsEncoder_Temp, 1, MAX_REPETITIONS);
 
   int cvQuantityValue = analogRead(CV_QUANTITY);
-  cvQuantityValue = map (cvQuantityValue, 0, 1023, 15, -16); // 32 steps
+  cvQuantityValue = map(constrain(cvQuantityValue, 30, 993), 30, 993, 15, -16); // 32 steps
+
   int temp = (int)repetitionsEncoder_Temp + cvQuantityValue; // it could be negative, need to cast
   repetitions_Temp = constrain(temp, 1, MAX_REPETITIONS);
 
@@ -262,24 +273,24 @@ void readRepetitions(unsigned long now)
     }
     ledQuantityTime = now;
     repetitionsOld = repetitions_Temp;
-
-    //repetitionCounter = repetitions_Temp - 1 ;
   }
 }
 
 void readRandom()
 {
   randomPot = analogRead(CV_PROBABILITY);
+  randomPot = map(constrain(randomPot, 30, 993), 30, 993, 0, 1023);
   // SERIAL_PRINTLN("randomPot %d", randomPot);
 }
 
 void readDistribution()
 {
   int distributionPot = analogRead(CV_DISTRIBUTION);
-
+  distributionPot = map(constrain(distributionPot, 30, 993), 30, 993, 0, 1023);
   // SERIAL_PRINTLN("distributionPot %d", distributionPot);
+
   switch (distributionPot) {
-  case -1 ... 56:
+  case 0 ... 56:
     distribution = distributionIndexArray [8];
     distributionSign = DISTRIBUTION_SIGN_NEGATIVE;
     break;
@@ -343,7 +354,7 @@ void readDistribution()
     distribution = distributionIndexArray [7];
     distributionSign = DISTRIBUTION_SIGN_POSITIVE;
     break;
-  case 968 ... 1024:
+  case 968 ... 1023:
     distribution = distributionIndexArray [8];
     distributionSign = DISTRIBUTION_SIGN_POSITIVE;
     break;
@@ -442,16 +453,11 @@ void handleLEDs(unsigned long now)
 
 void handlePulseDown(unsigned long now)
 {
-  if ((outputState == HIGH) && (burstStarted == true)) {
+  if ((outputState == HIGH) && (burstStarted == HIGH)) {
     if (now >= (burstTimeStart + burstTimeAccu + 2)) {
-      outputState = !outputState;
-      digitalWrite(OUT_STATE, !(outputState * noMoreBursts));
-      digitalWrite(OUT_LED, (outputState * noMoreBursts));
-      randomDif = randomPot - random(1023);
-      if ((firstBurst == HIGH) && (randomDif <= 0) && TriggerButtonState) {
-        noMoreBursts = false;
-      }
-      firstBurst = LOW;
+      outputState = LOW;
+      digitalWrite(OUT_STATE, HIGH);
+      digitalWrite(OUT_LED, LOW);
     }
   }
 }
@@ -460,16 +466,27 @@ void handleTempo(unsigned long now)
 {
   static bool inTempo = false;
 
-  // SERIAL_PRINTLN("now %lu tempoTic %lu inTempo %d", now, tempoTic, inTempo);
-  if ((now >= tempoTic) && (now < tempoTic + 100)) {
+  if (!masterClock) return;
+
+  // using a different variable here (tempoTimer) to avoid side effects
+  // when updating tempoTic. Now the tempoTimer is entirely independent
+  // of the cycling, etc.
+
+  if ((now >= tempoTimer) && (now < tempoTimer + 50)) {
     if (!inTempo) {
       digitalWrite(TEMPO_LED, HIGH);
+      inTempo = true;
     }
-    inTempo = true;
+    return;
   }
   else if (inTempo) {
     digitalWrite(TEMPO_LED, LOW);
     inTempo = false;
+  }
+
+  // only advance the tempo timer if we're not currently inTempo
+  while (tempoTimer + triggerDifference <= now) {
+    tempoTimer += masterClock;
   }
 }
 
@@ -505,12 +522,12 @@ void handlePulseUp(unsigned long now, bool inCycle)
   int inputValue;
 
   // pulse up - burst time
-  if ((outputState == LOW) && (burstStarted == true)) {
+  if ((outputState == LOW) && (burstStarted == HIGH)) {
     if (now >= (burstTimeStart + elapsedTimeSincePrevRepetition + burstTimeAccu)) { // time for a repetition
       if (repetitionCounter < repetitions - 1) { // is it the last repetition?
-        outputState = !outputState;
-        digitalWrite(OUT_STATE, !(outputState * noMoreBursts));
-        digitalWrite(OUT_LED, (outputState * noMoreBursts));
+        outputState = HIGH;
+        digitalWrite(OUT_STATE, !noMoreBursts);
+        digitalWrite(OUT_LED, noMoreBursts);
         burstTimeAccu += elapsedTimeSincePrevRepetition;
 
         repetitionCounter++;
@@ -555,8 +572,8 @@ void handlePulseUp(unsigned long now, bool inCycle)
       else { // it's the end of the burst, but not necessarily the end of a set of bursts (mult)
         enableEOC(now);
 
-        noMoreBursts = true;
-        burstStarted = false;
+        noMoreBursts = HIGH;
+        burstStarted = LOW;
 
         readCycle();
 
@@ -590,6 +607,8 @@ void doResync(unsigned long now)
     masterClock = masterClock_Temp;
   }
 
+  if (!masterClock) return;
+
   repetitions = repetitions_Temp;
   clockDivided = clockDivided_Temp;
   timePortions = timePortions_Temp;
@@ -598,7 +617,7 @@ void doResync(unsigned long now)
   while (tempoTic_Temp + triggerDifference <= now) {
     tempoTic_Temp += masterClock;
   }
-  tempoTic = tempoTic_Temp;
+  tempoTic = tempoTimer = tempoTic_Temp;
 
   readRandom();
   readDistribution();

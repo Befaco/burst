@@ -28,6 +28,8 @@
 #include <ClickEncoder.h>
 #include <EEPROM.h>
 #include <TimerOne.h>
+#define BOUNCE_LOCK_OUT // use lock out method for better response
+#include <Bounce2.h>
 
 // SET TO 0 to revert to standard behavior (EOC LED shows EOC)
 #define EOC_LED_IS_TEMPO 1
@@ -47,7 +49,7 @@
 #define CYCLE_STATE     A5
 
 #define PING_STATE      2
-#define PING_BUTTON     3
+#define ENCODER_BUTTON  3
 #define ENCODER_1       4
 #define ENCODER_2       5
 #define TRIGGER_STATE   8
@@ -117,7 +119,6 @@ byte repetitionsEncoder_Temp = 0;
 
 ///// Random
 int randomPot = 0;
-int randomDif = 0;
 
 ///// Distribution
 enum {
@@ -132,7 +133,7 @@ float distributionIndexArray [9];       /// used to calculate the position of th
 int curve = 5;                            /// the curved we apply to the  pow function to calculate the distribution of repetitions
 
 //// Trigger
-uint8_t TriggerButtonState = LOW;           /// the trigger button
+uint8_t triggerButtonState = LOW;           /// the trigger button
 bool triggered = false;                        /// the result of both trigger button and trigger input
 long triggerDifference = 0;            /// the time difference between the trigger and the ping
 bool triggerFirstPressed = 0;
@@ -146,20 +147,22 @@ bool cycle = 0;                          /// the result of both cycle switch and
 byte pingInState = 0;
 
 /// output
-bool outputState = HIGH;
+bool outputState = LOW;
 
 /// flags
-bool burstStarted = false;                   // if the burst is active or not
-bool noMoreBursts = true;               // used for probability to stop bursts, HIGH -> no repetitions, LOW -> repetitions
-bool firstBurst = 0;                     // HIGH if we are in the first repetition, LOW if we are in any of the other repetitions
+bool burstStarted = LOW;                   // if the burst is active or not
+bool noMoreBursts = HIGH;               // used for probability to stop bursts, HIGH -> no repetitions, LOW -> repetitions
 
-bool recycle = 0;     // recycle = start a new burst within a set of bursts (mult)
-bool resync = 0;      // resync = start a new burst, but ensure that we're correctly phased
+bool recycle = false;     // recycle = start a new burst within a set of bursts (mult)
+bool resync = false;      // resync = start a new burst, but ensure that we're correctly phased
 
 //// encoder button and tap tempo
 byte encoderButtonState = 0;
 unsigned long tempoTic = 0;                        /// everytime a pulse is received in ping input or the encoder button (tap) is pressed we store the time
 unsigned long tempoTic_Temp = 0;
+unsigned long tempoTimer = 0;
+
+Bounce bounce;
 
 void setup()
 {
@@ -184,7 +187,7 @@ void setup()
   pinMode (PING_STATE, INPUT_PULLUP);
   pinMode (TRIGGER_STATE, INPUT_PULLUP);
   pinMode (TRIGGER_BUTTON, INPUT_PULLUP);
-  pinMode (PING_BUTTON, INPUT_PULLUP);
+  pinMode (ENCODER_BUTTON, INPUT_PULLUP);
 
   pinMode (TEMPO_LED, OUTPUT);
   pinMode (OUT_LED, OUTPUT);
@@ -194,6 +197,9 @@ void setup()
 
   pinMode (EOC_STATE, OUTPUT);
   digitalWrite(EOC_STATE, HIGH);
+
+  bounce.interval(10); // debounce 10ms
+  bounce.attach(TRIGGER_BUTTON);
 
   createDistributionIndex();
 
@@ -205,10 +211,9 @@ void setup()
                 (((long)EEPROM.read(2) << 16) & 0xff0000) +
                 (((long)EEPROM.read(3) << 24) & 0xff000000);
   masterClock_Temp = masterClock;
+
   repetitions = EEPROM.read(4);
-  if (repetitions < 1) {
-    repetitions = 1;
-  }
+  repetitions = constrain(repetitions, 1, MAX_REPETITIONS);
 
   repetitions_Temp = repetitions;
   repetitionsOld = repetitions;
@@ -223,7 +228,7 @@ void loop()
 {
   unsigned long currentTime = millis();
 
-  if ((triggered == HIGH) && (triggerFirstPressed == HIGH)) { ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
+  if (masterClock && masterClock_Temp && (triggered == HIGH) && (triggerFirstPressed == HIGH)) { ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
     if (wantsEoc) {
       enableEOC(currentTime);
     }
@@ -244,7 +249,7 @@ void loop()
     triggerDifProportional = masterClock_Temp ? ((float)triggerDifference / (float)masterClock_Temp) : 0;
     triggered = triggerFirstPressed = LOW;
 #ifdef DEBUG
-    printDouble(triggerDifProportional, 100);
+    // printDouble(triggerDifProportional, 100);
 #endif
 
     doResync(currentTime);
@@ -260,20 +265,12 @@ void loop()
 
   // do this before cycle resync
   handlePulseDown(currentTime);
+
+  if (!masterClock) return;
+
   handlePulseUp(currentTime, cycle);
-#if EOC_LED_IS_TEMPO
-  handleTempo(currentTime);
-#endif
 
   if (cycle == HIGH) { // CYCLE ON
-    // TODO: investigate to ensure that we don't have drift wrt ping when cycling
-    // It's actually extremely unlikely that we do, but it's worth verifying
-    // However, the use of trigger difference in relation to cycle was not correct, since the
-    // difference is an absolute amount of the entire masterClock, and wasn't being
-    // corrected for mult/div. For now, I'm just ensuring that we've finished a division before
-    // permitting a resync. Otherwise, we need something more complex than the original test.
-    // We'd need to know which is the first burst of any particular cycle and ensure that it triggers
-    // at the proportionally correct time depending on mult/div.
     if (recycle) {
       // this means that we need to re-cycle
       if (resync) {
@@ -287,4 +284,8 @@ void loop()
       startBurstInit(currentTime);
     }
   }
+
+#if EOC_LED_IS_TEMPO
+  handleTempo(currentTime);
+#endif
 }
