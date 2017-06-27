@@ -162,6 +162,8 @@ unsigned long tempoTic = 0;                        /// everytime a pulse is rece
 unsigned long tempoTic_Temp = 0;
 unsigned long tempoTimer = 0;
 
+byte disableFirstClock = 0; // backward since we can't assume that there's anything saved on the EEPROM
+
 Bounce bounce;
 
 void setup()
@@ -210,10 +212,13 @@ void setup()
   masterClock = (EEPROM.read(0) & 0xff) + (((long)EEPROM.read(1) << 8) & 0xff00) +
                 (((long)EEPROM.read(2) << 16) & 0xff0000) +
                 (((long)EEPROM.read(3) << 24) & 0xff000000);
+  if (masterClock < 1) masterClock = 1;
   masterClock_Temp = masterClock;
 
   repetitions = EEPROM.read(4);
   repetitions = constrain(repetitions, 1, MAX_REPETITIONS);
+
+  disableFirstClock = EEPROM.read(5);
 
   repetitions_Temp = repetitions;
   repetitionsOld = repetitions;
@@ -228,15 +233,15 @@ void loop()
 {
   unsigned long currentTime = millis();
 
-  if (masterClock && masterClock_Temp && (triggered == HIGH) && (triggerFirstPressed == HIGH)) { ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
+  if ((triggered == HIGH) && (triggerFirstPressed == HIGH)) { ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
     if (wantsEoc) {
       enableEOC(currentTime);
     }
     repetitionCounter = 0;
 
-    if (repetitionsEncoder_Temp != repetitionsEncoder) {
+    if (repetitionsEncoder != repetitionsEncoder_Temp) {
       repetitionsEncoder = repetitionsEncoder_Temp;
-      EEPROM.write(4, repetitionsEncoder_Temp);
+      EEPROM.write(4, repetitionsEncoder);
     }
 
     triggerDifference = currentTime - tempoTic_Temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
@@ -265,9 +270,6 @@ void loop()
 
   // do this before cycle resync
   handlePulseDown(currentTime);
-
-  if (!masterClock) return;
-
   handlePulseUp(currentTime, cycle);
 
   if (cycle == HIGH) { // CYCLE ON
@@ -275,8 +277,9 @@ void loop()
       // this means that we need to re-cycle
       if (resync) {
         if (currentTime >= (tempoTic + masterClock + triggerDifference)) {
-          if (repetitions != repetitions_Temp) {
-            EEPROM.write(4, repetitions_Temp);
+          if (repetitionsEncoder != repetitionsEncoder_Temp) {
+            repetitionsEncoder = repetitionsEncoder_Temp;
+            EEPROM.write(4, repetitionsEncoder);
           }
           doResync(currentTime);
         }

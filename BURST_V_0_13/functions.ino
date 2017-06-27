@@ -78,9 +78,6 @@ void calculateClock(unsigned long now)
           masterClock_Temp = encoderTaps[0]; // should be encoderDuration
         }
         calcTimePortions();
-        if (!masterClock) {
-          masterClock = masterClock_Temp;
-        }
       }
 
       // we could do something like -- tapping the encoder will immediately enable the encoder's last tempo
@@ -113,9 +110,6 @@ void calculateClock(unsigned long now)
         tempoTic_Temp = now;
         masterClock_Temp = pingDuration;
         calcTimePortions();
-        if (!masterClock) {
-          masterClock = masterClock_Temp;
-        }
       }
       bitWrite(pingInState, 1, 1);
     }
@@ -125,9 +119,15 @@ void calculateClock(unsigned long now)
   }
 
   if (encoderButtonState == 3 && encoderLastTime && (now - encoderLastTime) > 2000) {
+    // toggle initial ping output
+    disableFirstClock = !disableFirstClock;
+    EEPROM.write(5, disableFirstClock);
+#if 0
+    // set master clock to 0, like the PEG
     masterClock_Temp = 0;
     encoderDuration = 0;
     encoderLastTime = 0;
+#endif
   }
   if (encoderButtonState == 2) {
     bitWrite(encoderButtonState, 1, 0);
@@ -166,8 +166,8 @@ void startBurstInit(unsigned long now)
   if (randomDif <= 0 && triggerButtonState) {
     noMoreBursts = LOW;
   }
-  digitalWrite(OUT_STATE, !noMoreBursts);
-  digitalWrite(OUT_LED, noMoreBursts);
+  digitalWrite(OUT_STATE, !(noMoreBursts | disableFirstClock));
+  digitalWrite(OUT_LED, (noMoreBursts | disableFirstClock));
 
   switch (distributionSign) {
   case DISTRIBUTION_SIGN_POSITIVE:
@@ -259,13 +259,19 @@ void readRepetitions(unsigned long now)
       repetitionsEncoder_Temp--;
     }
   }
-  repetitionsEncoder_Temp = constrain(repetitionsEncoder_Temp, 1, MAX_REPETITIONS);
+  if (repetitionsEncoder_Temp < 1) repetitionsEncoder_Temp = 1;
+  // repetitionsEncoder_Temp = constrain(repetitionsEncoder_Temp, 1, MAX_REPETITIONS);
+  // SERIAL_PRINTLN("repEnc %d", repetitionsEncoder_Temp);
 
   int cvQuantityValue = analogRead(CV_QUANTITY);
-  cvQuantityValue = map(constrain(cvQuantityValue, 30, 993), 30, 993, 15, -16); // 32 steps
+  cvQuantityValue = map(cvQuantityValue, 0, 1023, 15, -16); // 32 steps
+  // SERIAL_PRINTLN("cv %d", cvQuantityValue);
 
   int temp = (int)repetitionsEncoder_Temp + cvQuantityValue; // it could be negative, need to cast
   repetitions_Temp = constrain(temp, 1, MAX_REPETITIONS);
+  // SERIAL_PRINTLN("repTmp %d", repetitions_Temp);
+
+  repetitionsEncoder_Temp = constrain(repetitionsEncoder_Temp, 1, MAX_REPETITIONS);
 
   if (repetitions_Temp != repetitionsOld) {
     for (int i = 0; i < 4; i++) {
@@ -466,8 +472,6 @@ void handleTempo(unsigned long now)
 {
   static bool inTempo = false;
 
-  if (!masterClock) return;
-
   // using a different variable here (tempoTimer) to avoid side effects
   // when updating tempoTic. Now the tempoTimer is entirely independent
   // of the cycling, etc.
@@ -607,8 +611,6 @@ void doResync(unsigned long now)
     masterClock = masterClock_Temp;
   }
 
-  if (!masterClock) return;
-
   repetitions = repetitions_Temp;
   clockDivided = clockDivided_Temp;
   timePortions = timePortions_Temp;
@@ -627,6 +629,8 @@ void doResync(unsigned long now)
 
 void calcTimePortions()
 {
+  if (masterClock_Temp < 1) masterClock_Temp = 1; // ensure masterClock > 0
+
   if (divisions > 0) {
     clockDivided_Temp = masterClock_Temp * divisions;
   }
