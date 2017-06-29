@@ -450,9 +450,9 @@ float mapfloat(float x, float inMin, float inMax, float outMin, float outMax)
 
 void handleLEDs(unsigned long now)
 {
-  if ((now >= ledQuantityTime + 250) && (noMoreBursts)) {
+  if (now >= ledQuantityTime + 350) {
     for (int i = 0; i < 4; i++) {
-      digitalWrite(ledPin[i], bitRead(repetitionCounter, i));
+      digitalWrite(ledPin[i], bitRead(burstStarted ? repetitionCounter : repetitions_Temp - 1, i));
     }
   }
 }
@@ -588,10 +588,6 @@ void handlePulseUp(unsigned long now, bool inCycle)
             resync = true;
             divisionCounter = 0;
           }
-        }
-
-        for (int i = 0; i < 4; i++) {
-          digitalWrite(ledPin[i], bitRead(repetitions - 1, i));
         }
       }
     }
