@@ -208,40 +208,54 @@ void startBurstInit(unsigned long now)
   }
 }
 
-void readDivision()                                    //// read divisions
+void readDivision(unsigned long now)                                    //// read divisions
 {
+  static int divisionsPotPrev = 0;
+  int divisionsVal;
   int divisionsPot = analogRead(CV_DIVISIONS);
   divisionsPot = map(constrain(divisionsPot, 30, 993), 30, 993, 0, 1023);
   // SERIAL_PRINTLN("divisionsPot %d", divisionsPot);
 
   switch (divisionsPot) {
-  case 0 ... 105:
-    divisions = -5;
+  case 0 ... 113:
+    divisionsVal = -5;
     break;
-  case 121 ... 219:
-    divisions = -4;
+  case 114 ... 226:
+    divisionsVal = -4;
     break;
-  case 235 ... 333:
-    divisions = -3;
+  case 227 ... 339:
+    divisionsVal = -3;
     break;
-  case 349 ... 446:
-    divisions = -2;
+  case 340 ... 452:
+    divisionsVal = -2;
     break;
-  case 462 ... 560:
-    divisions = 0;
+  case 453 ... 567:
+    divisionsVal = 0;
     break;
-  case 576 ... 674:
-    divisions = 2;
+  case 568 ... 681:
+    divisionsVal = 2;
     break;
-  case 690 ... 787:
-    divisions = 3;
+  case 682 ... 795:
+    divisionsVal = 3;
     break;
-  case 803 ... 901:
-    divisions = 4;
+  case 796 ... 909:
+    divisionsVal = 4;
     break;
-  case 917 ... 1023:
-    divisions = 5;
+  case 910 ... 1023:
+    divisionsVal = 5;
     break;
+  }
+
+  if (abs(divisionsPot - divisionsPotPrev) > 5) {
+    if (now >= ledQuantityTime + 350) {
+      byte bitDivisions = divisionsVal == 0 ? 0 : divisionsVal < 0 ? -(divisionsVal) : (16 - divisionsVal);
+      for (int i = 0; i < 4; i++) {
+        digitalWrite(ledPin[i], bitRead(bitDivisions, i));
+      }
+      ledDivisionsTime = now;
+    }
+    divisions_Temp = divisionsVal;
+    divisionsPotPrev = divisionsPot;
   }
 }
 
@@ -450,7 +464,7 @@ float mapfloat(float x, float inMin, float inMax, float outMin, float outMax)
 
 void handleLEDs(unsigned long now)
 {
-  if (now >= ledQuantityTime + 350) {
+  if ((now >= ledQuantityTime + 350) && (now >= ledDivisionsTime + 750)) {
     for (int i = 0; i < 4; i++) {
       digitalWrite(ledPin[i], bitRead(burstStarted ? repetitionCounter : repetitions_Temp - 1, i));
     }
@@ -597,7 +611,9 @@ void handlePulseUp(unsigned long now, bool inCycle)
 void doResync(unsigned long now)
 {
   // we are at the start of a new burst
-  readDivision(); // get the new value in advance of calctimeportions();
+
+  // get the new value in advance of calctimeportions();
+  divisions = divisions_Temp;
   calcTimePortions();
 
   // try to mantain proportional difference between ping and trigger

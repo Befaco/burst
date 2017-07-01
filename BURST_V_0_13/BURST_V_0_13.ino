@@ -98,6 +98,7 @@ unsigned long elapsedTimeSincePrevRepetitionNew = 0;           /// the position 
 unsigned long elapsedTimeSincePrevRepetitionOld = 0;           /// the position of the previous repetition inside the time window
 
 unsigned long ledQuantityTime = 0;        /// time counter used to turn off the led when we are chosing the number of repetitions with the encoder
+unsigned long ledDivisionsTime = 0;        /// time counter used to turn off the led when we are chosing the number of repetitions with the encoder
 
 bool inEoc = false;
 bool wantsEoc = false;
@@ -105,6 +106,7 @@ unsigned long eocCounter = 0;              /// a counter to turn off the eoc led
 
 //    divisions
 int divisions;                            //// value of the time division or the time multiplier
+int divisions_Temp = 0;
 int divisionCounter = 0;
 
 ////// Repetitions
@@ -225,7 +227,7 @@ void setup()
   repetitionsEncoder = repetitions;
   repetitionsEncoder_Temp = repetitions;
 
-  readDivision();
+  readDivision(0);
   calcTimePortions();
 }
 
@@ -264,6 +266,8 @@ void loop()
   calculateClock(currentTime); // we read the ping in and the encoder button to get : master clock, clock divided and timePortions
   readTrigger(); // we read the trigger input and the trigger button to see if it is HIGH or LOW, if it is HIGH and it is the first time it is.
   readRepetitions(currentTime); // we read the number of repetitions in the encoder, we have to attend this process often to avoid missing encoder tics.
+
+  readDivision(currentTime);
 
   handleEOC(currentTime, 30);
   handleLEDs(currentTime);
