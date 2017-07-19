@@ -9,6 +9,10 @@ byte encoderTapsTotal = 0; // 2 means use the duration between encoderTaps[0] an
 unsigned long pingLastTime = 0;
 unsigned long pingDuration = 0;
 
+/// flags
+bool burstStarted = LOW; // if the burst is active or not
+bool wantsMoreBursts = HIGH;
+
 int calibratedRepetitions = 511;
 int calibratedDistribution = 511;
 int calibratedDivisions = 511;
@@ -235,10 +239,10 @@ void startBurstInit(unsigned long now)
 
   int randomDif = randomPot - random(1023);
   if (randomDif <= 0 && triggerButtonState) {
-    noMoreBursts = LOW;
+    wantsMoreBursts = LOW;
   }
-  digitalWrite(OUT_STATE, !(noMoreBursts | disableFirstClock));
-  digitalWrite(OUT_LED, (noMoreBursts | disableFirstClock));
+  digitalWrite(OUT_STATE, !(wantsMoreBursts | disableFirstClock));
+  digitalWrite(OUT_LED, (wantsMoreBursts | disableFirstClock));
 
   switch (distributionSign) {
   case DISTRIBUTION_SIGN_POSITIVE:
@@ -537,6 +541,7 @@ float mapfloat(float x, float inMin, float inMax, float outMin, float outMax)
 void handleLEDs(unsigned long now)
 {
   if ((now >= ledQuantityTime + 350) && (now >= ledDivisionsTime + 750)) {
+    if (!wantsMoreBursts) return;
     for (int i = 0; i < 4; i++) {
       digitalWrite(ledPin[i], bitRead(burstStarted ? repetitionCounter : repetitions_Temp - 1, i));
     }
@@ -616,8 +621,8 @@ void handlePulseUp(unsigned long now, bool inCycle)
     if (now >= (burstTimeStart + elapsedTimeSincePrevRepetition + burstTimeAccu)) { // time for a repetition
       if (repetitionCounter < repetitions - 1) { // is it the last repetition?
         outputState = HIGH;
-        digitalWrite(OUT_STATE, !noMoreBursts);
-        digitalWrite(OUT_LED, noMoreBursts);
+        digitalWrite(OUT_STATE, !wantsMoreBursts);
+        digitalWrite(OUT_LED, wantsMoreBursts);
         burstTimeAccu += elapsedTimeSincePrevRepetition;
 
         repetitionCounter++;
@@ -662,7 +667,7 @@ void handlePulseUp(unsigned long now, bool inCycle)
       else { // it's the end of the burst, but not necessarily the end of a set of bursts (mult)
         enableEOC(now);
 
-        noMoreBursts = HIGH;
+        wantsMoreBursts = HIGH;
         burstStarted = LOW;
 
         readCycle();

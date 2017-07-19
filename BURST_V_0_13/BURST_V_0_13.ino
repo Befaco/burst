@@ -151,10 +151,6 @@ byte pingInState = 0;
 /// output
 bool outputState = LOW;
 
-/// flags
-bool burstStarted = LOW;                   // if the burst is active or not
-bool noMoreBursts = HIGH;               // used for probability to stop bursts, HIGH -> no repetitions, LOW -> repetitions
-
 bool recycle = false;     // recycle = start a new burst within a set of bursts (mult)
 bool resync = false;      // resync = start a new burst, but ensure that we're correctly phased
 
