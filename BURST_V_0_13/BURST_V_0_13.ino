@@ -40,7 +40,7 @@
 
 #define CV_DIVISIONS    A0
 #define CV_PROBABILITY  A1
-#define CV_QUANTITY     A2
+#define CV_REPETITIONS     A2
 #define CV_DISTRIBUTION A3
 
 ////// DIGITAL INS
@@ -226,6 +226,8 @@ void setup()
   repetitionsOld = repetitions;
   repetitionsEncoder = repetitions;
   repetitionsEncoder_Temp = repetitions;
+
+  checkCalibrationMode();
 
   readDivision(0);
   calcTimePortions();

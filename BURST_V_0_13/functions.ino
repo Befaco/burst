@@ -9,6 +9,77 @@ byte encoderTapsTotal = 0; // 2 means use the duration between encoderTaps[0] an
 unsigned long pingLastTime = 0;
 unsigned long pingDuration = 0;
 
+int calibratedRepetitions = 511;
+int calibratedDistribution = 511;
+int calibratedDivisions = 511;
+int calibratedProbability = 511;
+
+void doCalibration()
+{
+  calibratedRepetitions = analogRead(CV_REPETITIONS);
+  calibratedDistribution = analogRead(CV_DISTRIBUTION);
+  calibratedDivisions = analogRead(CV_DIVISIONS);
+  calibratedProbability = analogRead(CV_PROBABILITY);
+
+  EEPROM.write(6, (calibratedRepetitions & 0xff));
+  EEPROM.write(7, ((calibratedRepetitions >> 8) & 0xff));
+
+  EEPROM.write(8, (calibratedDistribution & 0xff));
+  EEPROM.write(9, ((calibratedDistribution >> 8) & 0xff));
+
+  EEPROM.write(10, (calibratedDivisions & 0xff));
+  EEPROM.write(11, ((calibratedDivisions >> 8) & 0xff));
+
+  EEPROM.write(12, (calibratedProbability & 0xff));
+  EEPROM.write(13, ((calibratedProbability >> 8) & 0xff));
+
+  int count = 0;
+  while (count < 3) {
+    int cur = 0;
+    while (cur < 16) {
+      for (int i = 0; i < 4; i++) {
+        digitalWrite(ledPin[i], bitRead(cur, i));
+      }
+      cur++;
+      delay(5);
+    }
+    count++;
+  }
+}
+
+void checkCalibrationMode()
+{
+  if (digitalRead(ENCODER_BUTTON) == 0) {
+    doCalibration();
+  }
+  else {
+    calibratedRepetitions = ((EEPROM.read(6) & 0xff) | ((EEPROM.read(7) << 8) & 0xff00));
+    if (!calibratedRepetitions) calibratedRepetitions = 511;
+
+    calibratedDistribution = ((EEPROM.read(8) & 0xff) | ((EEPROM.read(9) << 8) & 0xff00));
+    if (!calibratedDistribution) calibratedDistribution = 511;
+
+    calibratedDivisions = ((EEPROM.read(10) & 0xff) | ((EEPROM.read(11) << 8) & 0xff00));
+    if (!calibratedDivisions) calibratedDivisions = 511;
+
+    calibratedProbability = ((EEPROM.read(12) & 0xff) | ((EEPROM.read(13) << 8) & 0xff00));
+    if (!calibratedProbability) calibratedProbability = 511;
+  }
+}
+
+int mapCalibratedAnalogValue(int val, int calibratedValue, int mappedValue, int start, int stop)
+{
+  int calVal = calibratedValue - 5; // buffer of -5 from calibration
+  int outVal;
+  if (val <= calVal) {
+    outVal = map(val, 0, calVal + 1, start, mappedValue + (start > stop ? -1 : 1)); // 32 steps
+  }
+  else {
+    outVal = map(val, calVal, 1024, mappedValue, stop + (start > stop ? -1 : 1));
+  }
+  return outVal;
+}
+
 void calculateClock(unsigned long now)
 {
   ////  Read the encoder button state
@@ -213,7 +284,7 @@ void readDivision(unsigned long now)                                    //// rea
   static int divisionsPotPrev = 0;
   int divisionsVal;
   int divisionsPot = analogRead(CV_DIVISIONS);
-  divisionsPot = map(constrain(divisionsPot, 30, 993), 30, 993, 0, 1023);
+  divisionsPot = mapCalibratedAnalogValue(divisionsPot, calibratedDivisions, 511, 0, 1023);
   // SERIAL_PRINTLN("divisionsPot %d", divisionsPot);
 
   switch (divisionsPot) {
@@ -259,6 +330,8 @@ void readDivision(unsigned long now)                                    //// rea
   }
 }
 
+static int calibratedCVZero = 719;
+
 void readRepetitions(unsigned long now)
 {
   encoderValue += encoder->getValue();
@@ -277,9 +350,8 @@ void readRepetitions(unsigned long now)
   // repetitionsEncoder_Temp = constrain(repetitionsEncoder_Temp, 1, MAX_REPETITIONS);
   // SERIAL_PRINTLN("repEnc %d", repetitionsEncoder_Temp);
 
-  int cvQuantityValue = analogRead(CV_QUANTITY);
-  cvQuantityValue = map(cvQuantityValue, 0, 1023, 15, -16); // 32 steps
-  // SERIAL_PRINTLN("cv %d", cvQuantityValue);
+  int cvQuantityValue = analogRead(CV_REPETITIONS);
+  cvQuantityValue = mapCalibratedAnalogValue(cvQuantityValue, calibratedRepetitions, 0, 32, -16);
 
   int temp = (int)repetitionsEncoder_Temp + cvQuantityValue; // it could be negative, need to cast
   repetitions_Temp = constrain(temp, 1, MAX_REPETITIONS);
@@ -299,14 +371,14 @@ void readRepetitions(unsigned long now)
 void readRandom()
 {
   randomPot = analogRead(CV_PROBABILITY);
-  randomPot = map(constrain(randomPot, 30, 993), 30, 993, 0, 1023);
+  randomPot = mapCalibratedAnalogValue(randomPot, calibratedProbability, 511, 0, 1023);
   // SERIAL_PRINTLN("randomPot %d", randomPot);
 }
 
 void readDistribution()
 {
   int distributionPot = analogRead(CV_DISTRIBUTION);
-  distributionPot = map(constrain(distributionPot, 30, 993), 30, 993, 0, 1023);
+  distributionPot = mapCalibratedAnalogValue(distributionPot, calibratedDistribution, 511, 0, 1023);
   // SERIAL_PRINTLN("distributionPot %d", distributionPot);
 
   switch (distributionPot) {
