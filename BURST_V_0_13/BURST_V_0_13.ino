@@ -98,7 +98,7 @@ unsigned long elapsedTimeSincePrevRepetitionNew = 0;           /// the position 
 unsigned long elapsedTimeSincePrevRepetitionOld = 0;           /// the position of the previous repetition inside the time window
 
 unsigned long ledQuantityTime = 0;        /// time counter used to turn off the led when we are chosing the number of repetitions with the encoder
-unsigned long ledDivisionsTime = 0;        /// time counter used to turn off the led when we are chosing the number of repetitions with the encoder
+unsigned long ledParameterTime = 0;        /// time counter used to turn off the led when we are chosing the number of repetitions with the encoder
 
 bool inEoc = false;
 bool wantsEoc = false;
@@ -121,6 +121,7 @@ byte repetitionsEncoder_Temp = 0;
 
 ///// Random
 int randomPot = 0;
+int randomPot_Temp = 0;
 
 ///// Distribution
 enum {
@@ -129,10 +130,12 @@ enum {
   DISTRIBUTION_SIGN_ZERO = 2
 };
 
-byte distributionSign = DISTRIBUTION_SIGN_POSITIVE;
 float distribution = 0;
-float distributionIndexArray [9];       /// used to calculate the position of the repetitions
-int curve = 5;                            /// the curved we apply to the  pow function to calculate the distribution of repetitions
+byte distributionSign = DISTRIBUTION_SIGN_POSITIVE;
+float distributionIndexArray[9];       /// used to calculate the position of the repetitions
+int curve = 5;                         /// the curved we apply to the  pow function to calculate the distribution of repetitions
+float distribution_Temp = 0;
+byte distributionSign_Temp = DISTRIBUTION_SIGN_POSITIVE;
 
 //// Trigger
 uint8_t triggerButtonState = LOW;           /// the trigger button
@@ -266,6 +269,8 @@ void loop()
   readRepetitions(currentTime); // we read the number of repetitions in the encoder, we have to attend this process often to avoid missing encoder tics.
 
   readDivision(currentTime);
+  readDistribution(currentTime);
+  readRandom(currentTime);
 
   handleEOC(currentTime, 30);
   handleLEDs(currentTime);

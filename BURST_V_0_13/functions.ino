@@ -45,8 +45,9 @@ void doCalibration()
         digitalWrite(ledPin[i], bitRead(cur, i));
       }
       cur++;
-      delay(5);
+      delay(10);
     }
+    delay(20);
     count++;
   }
 }
@@ -237,7 +238,7 @@ void startBurstInit(unsigned long now)
   // whether we actually write to the output pin or not
   outputState = HIGH;
 
-  int randomDif = randomPot - random(1023);
+  int randomDif = randomPot - random(100);
   if (randomDif <= 0 && triggerButtonState) {
     wantsMoreBursts = LOW;
   }
@@ -286,40 +287,11 @@ void startBurstInit(unsigned long now)
 void readDivision(unsigned long now)                                    //// read divisions
 {
   static int divisionsPotPrev = 0;
-  int divisionsVal;
   int divisionsPot = analogRead(CV_DIVISIONS);
-  divisionsPot = mapCalibratedAnalogValue(divisionsPot, calibratedDivisions, 511, 0, 1023);
+  int divisionsVal = mapCalibratedAnalogValue(divisionsPot, calibratedDivisions, 0, -4, 4);
   // SERIAL_PRINTLN("divisionsPot %d", divisionsPot);
 
-  switch (divisionsPot) {
-  case 0 ... 113:
-    divisionsVal = -5;
-    break;
-  case 114 ... 226:
-    divisionsVal = -4;
-    break;
-  case 227 ... 339:
-    divisionsVal = -3;
-    break;
-  case 340 ... 452:
-    divisionsVal = -2;
-    break;
-  case 453 ... 567:
-    divisionsVal = 0;
-    break;
-  case 568 ... 681:
-    divisionsVal = 2;
-    break;
-  case 682 ... 795:
-    divisionsVal = 3;
-    break;
-  case 796 ... 909:
-    divisionsVal = 4;
-    break;
-  case 910 ... 1023:
-    divisionsVal = 5;
-    break;
-  }
+  divisionsVal = divisionsVal + (divisionsVal > 0 ? 1 : divisionsVal < 0 ? -1 : 0); // skip 2/-2
 
   if (abs(divisionsPot - divisionsPotPrev) > 5) {
     if (now >= ledQuantityTime + 350) {
@@ -327,7 +299,7 @@ void readDivision(unsigned long now)                                    //// rea
       for (int i = 0; i < 4; i++) {
         digitalWrite(ledPin[i], bitRead(bitDivisions, i));
       }
-      ledDivisionsTime = now;
+      ledParameterTime = now;
     }
     divisions_Temp = divisionsVal;
     divisionsPotPrev = divisionsPot;
@@ -372,88 +344,51 @@ void readRepetitions(unsigned long now)
   }
 }
 
-void readRandom()
+void readRandom(unsigned long now)
 {
-  randomPot = analogRead(CV_PROBABILITY);
-  randomPot = mapCalibratedAnalogValue(randomPot, calibratedProbability, 511, 0, 1023);
+  int randomVal = analogRead(CV_PROBABILITY);
+  randomVal = mapCalibratedAnalogValue(randomVal, calibratedProbability, 50, 0, 100);
   // SERIAL_PRINTLN("randomPot %d", randomPot);
+
+  if (randomVal != randomPot_Temp) {
+    if (now >= ledQuantityTime + 350) {
+      byte bitRandom = map(randomVal, 0, 100, 15, 0);
+      for (int i = 0; i < 4; i++) {
+        digitalWrite(ledPin[i], bitRead(bitRandom, i));
+      }
+      ledParameterTime = now;
+    }
+    randomPot_Temp = randomVal;
+  }
 }
 
-void readDistribution()
+void readDistribution(unsigned long now)
 {
+  static int distributionPotPrev = 0;
   int distributionPot = analogRead(CV_DISTRIBUTION);
-  distributionPot = mapCalibratedAnalogValue(distributionPot, calibratedDistribution, 511, 0, 1023);
+  int distributionVal = mapCalibratedAnalogValue(distributionPot, calibratedDistribution, 0, -8, 8);
   // SERIAL_PRINTLN("distributionPot %d", distributionPot);
 
-  switch (distributionPot) {
-  case 0 ... 56:
-    distribution = distributionIndexArray [8];
-    distributionSign = DISTRIBUTION_SIGN_NEGATIVE;
-    break;
-  case 57 ... 113:
-    distribution = distributionIndexArray [7];
-    distributionSign = DISTRIBUTION_SIGN_NEGATIVE;
-    break;
-  case 114 ... 170:
-    distribution = distributionIndexArray [6];
-    distributionSign = DISTRIBUTION_SIGN_NEGATIVE;
-    break;
-  case 171 ... 227:
-    distribution = distributionIndexArray [5];
-    distributionSign = DISTRIBUTION_SIGN_NEGATIVE;
-    break;
-  case 228 ... 284:
-    distribution = distributionIndexArray [4];
-    distributionSign = DISTRIBUTION_SIGN_NEGATIVE;
-    break;
-  case 285 ... 341:
-    distribution = distributionIndexArray [3];
-    distributionSign = DISTRIBUTION_SIGN_NEGATIVE;
-    break;
-  case 342 ... 398:
-    distribution = distributionIndexArray [2];
-    distributionSign = DISTRIBUTION_SIGN_NEGATIVE;
-    break;
-  case 399 ... 455:
-    distribution = distributionIndexArray [1];
-    distributionSign = DISTRIBUTION_SIGN_NEGATIVE;
-    break;
-  case 456 ... 568:   // this was too narrow and easy to miss, adjusted all the others to be a little more narrow, and this is ~twice as wide
-    distribution = distributionIndexArray [0];
-    distributionSign = DISTRIBUTION_SIGN_ZERO;
-    break;
-  case 569 ... 625:
-    distribution = distributionIndexArray [1];
-    distributionSign = DISTRIBUTION_SIGN_POSITIVE;
-    break;
-  case 626 ... 682:
-    distribution = distributionIndexArray [2];
-    distributionSign = DISTRIBUTION_SIGN_POSITIVE;
-    break;
-  case 683 ... 739:
-    distribution = distributionIndexArray [3];
-    distributionSign = DISTRIBUTION_SIGN_POSITIVE;
-    break;
-  case 740 ... 796:
-    distribution = distributionIndexArray [4];
-    distributionSign = DISTRIBUTION_SIGN_POSITIVE;
-    break;
-  case 797 ... 853:
-    distribution = distributionIndexArray [5];
-    distributionSign = DISTRIBUTION_SIGN_POSITIVE;
-    break;
-  case 854 ... 910:
-    distribution = distributionIndexArray [6];
-    distributionSign = DISTRIBUTION_SIGN_POSITIVE;
-    break;
-  case 911 ... 967:
-    distribution = distributionIndexArray [7];
-    distributionSign = DISTRIBUTION_SIGN_POSITIVE;
-    break;
-  case 968 ... 1023:
-    distribution = distributionIndexArray [8];
-    distributionSign = DISTRIBUTION_SIGN_POSITIVE;
-    break;
+  int dist = distributionIndexArray[abs(distributionVal)];
+  int distSign = (distributionVal > 0 ? DISTRIBUTION_SIGN_NEGATIVE :
+                      distributionVal < 0 ? DISTRIBUTION_SIGN_POSITIVE :
+                      DISTRIBUTION_SIGN_ZERO);
+
+  if (abs(distributionPot - distributionPotPrev) > 5 || dist != distribution_Temp) {
+    if (now >= ledQuantityTime + 350) {
+      byte bitDistribution = (distributionVal < 0) ? -(distributionVal) :
+                             (distributionVal > 0) ? (16 - distributionVal) : 0;
+
+      for (int i = 0; i < 4; i++) {
+        digitalWrite(ledPin[i], bitRead(bitDistribution, i));
+      }
+      ledParameterTime = now;
+    }
+
+    distribution_Temp = dist;
+    distributionSign_Temp = distSign;
+
+    distributionPotPrev = distributionPot;
   }
 }
 
@@ -540,7 +475,7 @@ float mapfloat(float x, float inMin, float inMax, float outMin, float outMax)
 
 void handleLEDs(unsigned long now)
 {
-  if ((now >= ledQuantityTime + 350) && (now >= ledDivisionsTime + 750)) {
+  if ((now >= ledQuantityTime + 350) && (now >= ledParameterTime + 750)) {
     if (!wantsMoreBursts) return;
     for (int i = 0; i < 4; i++) {
       digitalWrite(ledPin[i], bitRead(burstStarted ? repetitionCounter : repetitions_Temp - 1, i));
@@ -703,6 +638,9 @@ void doResync(unsigned long now)
   repetitions = repetitions_Temp;
   clockDivided = clockDivided_Temp;
   timePortions = timePortions_Temp;
+  distribution = distribution_Temp;
+  distributionSign = distributionSign_Temp;
+  randomPot = randomPot_Temp;
 
   // ensure that the clock advances
   while (tempoTic_Temp + triggerDifference <= now) {
@@ -710,8 +648,6 @@ void doResync(unsigned long now)
   }
   tempoTic = tempoTimer = tempoTic_Temp;
 
-  readRandom();
-  readDistribution();
   readCycle();
   resync = false;
 }
