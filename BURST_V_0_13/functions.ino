@@ -369,8 +369,8 @@ void readDistribution(unsigned long now)
   int distributionVal = mapCalibratedAnalogValue(distributionPot, calibratedDistribution, 0, -8, 8);
   // SERIAL_PRINTLN("distributionPot %d", distributionPot);
 
-  int dist = distributionIndexArray[abs(distributionVal)];
-  int distSign = (distributionVal > 0 ? DISTRIBUTION_SIGN_NEGATIVE :
+  float dist = distributionIndexArray[abs(distributionVal)];
+  byte distSign = (distributionVal > 0 ? DISTRIBUTION_SIGN_NEGATIVE :
                       distributionVal < 0 ? DISTRIBUTION_SIGN_POSITIVE :
                       DISTRIBUTION_SIGN_ZERO);
 
@@ -455,7 +455,7 @@ int32_t fscale(int32_t originalMin,
   return rangedValue;
 }
 
-void createDistributionIndex ()
+void createDistributionIndex()
 {
   for (int i  = 0; i <= 8; i++) {
     // invert and scale in advance: positive numbers give more weight to high end on output
