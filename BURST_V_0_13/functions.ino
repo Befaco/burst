@@ -244,9 +244,9 @@ void startBurstInit(unsigned long now)
   outputState = HIGH;
 
   int randomDif = randomPot - random(100);
-  if (randomDif <= 0 && triggerButtonState) {
-    wantsMoreBursts = LOW;
-  }
+  // trigger button overrides probability
+  wantsMoreBursts = (!triggerButtonState) ? HIGH : (randomDif <= 0) ? LOW : wantsMoreBursts;
+
   digitalWrite(OUT_STATE, !(wantsMoreBursts | disableFirstClock));
   digitalWrite(OUT_LED, (wantsMoreBursts | disableFirstClock));
 
