@@ -18,6 +18,19 @@ int calibratedDistribution = 511;
 int calibratedDivisions = 511;
 int calibratedProbability = 511;
 
+void doLedFlourish()
+{
+  int cur = 0;
+  while (cur < 16) {
+    for (int i = 0; i < 4; i++) {
+      digitalWrite(ledPin[i], bitRead(cur, i));
+    }
+    cur++;
+    delay(10);
+  }
+  delay(20);
+}
+
 void doCalibration()
 {
   calibratedRepetitions = analogRead(CV_REPETITIONS);
@@ -39,22 +52,17 @@ void doCalibration()
 
   int count = 0;
   while (count < 3) {
-    int cur = 0;
-    while (cur < 16) {
-      for (int i = 0; i < 4; i++) {
-        digitalWrite(ledPin[i], bitRead(cur, i));
-      }
-      cur++;
-      delay(10);
-    }
-    delay(20);
+    doLedFlourish();
     count++;
   }
 }
 
 void checkCalibrationMode()
 {
-  if (digitalRead(ENCODER_BUTTON) == 0) {
+  bounce.update();
+  int buttonDown = !bounce.read();
+
+  if (digitalRead(ENCODER_BUTTON) == 0 && buttonDown) {
     doCalibration();
   }
   else {
@@ -199,10 +207,11 @@ void calculateClock(unsigned long now)
     calcTimePortions();
   }
 
-  if (encoderButtonState == 3 && encoderLastTime && (now - encoderLastTime) > 2000) {
-    // toggle initial ping output
-    disableFirstClock = !disableFirstClock;
-    EEPROM.write(5, disableFirstClock);
+  if (encoderButtonState == 3 && encoderLastTime && (now - encoderLastTime) > 5000) {
+    eocOrTempoOut = !eocOrTempoOut;
+    EEPROM.write(14, eocOrTempoOut);
+    doLedFlourish();
+    encoderLastTime = now;
 #if 0
     // set master clock to 0, like the PEG
     masterClock_Temp = 0;
@@ -218,11 +227,28 @@ void calculateClock(unsigned long now)
   }
 }
 
-void readTrigger()
+void readTrigger(unsigned long now)
 {
   bool triggerCvState = digitalRead(TRIGGER_STATE);
   bounce.update();
-  triggerButtonState = bounce.read();
+  int buttonDown = !bounce.read();
+  if (buttonDown) {
+    if (triggerButtonState) { // it's a new press
+      triggerButtonPressedTime = now;
+    }
+    else if ((now - triggerButtonPressedTime) > 5000) {
+      // toggle initial ping output
+      disableFirstClock = !disableFirstClock;
+      EEPROM.write(5, disableFirstClock);
+      doLedFlourish();
+      triggerButtonPressedTime = now;
+    }
+  }
+  else {
+    triggerButtonPressedTime = 0;
+  }
+
+  triggerButtonState = !buttonDown;
   triggered = !(triggerButtonState && triggerCvState);
   if (triggered == LOW) {
     triggerFirstPressed = HIGH;
@@ -504,19 +530,22 @@ void handleTempo(unsigned long now)
 {
   static bool inTempo = false;
 
+  if (!eocOrTempoOut) return; // 0 = EOC
   // using a different variable here (tempoTimer) to avoid side effects
   // when updating tempoTic. Now the tempoTimer is entirely independent
   // of the cycling, etc.
 
-  if ((now >= tempoTimer) && (now < tempoTimer + 50)) {
+  if ((now >= tempoTimer) && (now < tempoTimer + 30)) {
     if (!inTempo) {
       digitalWrite(TEMPO_LED, HIGH);
+      digitalWrite(TEMPO_STATE, LOW);
       inTempo = true;
     }
     return;
   }
   else if (inTempo) {
     digitalWrite(TEMPO_LED, LOW);
+    digitalWrite(TEMPO_STATE, HIGH);
     inTempo = false;
   }
 
@@ -528,14 +557,18 @@ void handleTempo(unsigned long now)
 
 void enableEOC(unsigned long now)
 {
+  if (eocOrTempoOut) { // 1 = TEMPO
+    inEoc = true;
+    wantsEoc = false;
+    return;
+  }
+
   if (inEoc) {
     eocCounter = now;
     handleEOC(now, 0); // turn off the EOC if necessary
   }
   // turn it (back) on
-#if !EOC_LED_IS_TEMPO
   digitalWrite(EOC_LED, HIGH);
-#endif
   digitalWrite(EOC_STATE, LOW);
   inEoc = true;
   wantsEoc = false;
@@ -544,10 +577,13 @@ void enableEOC(unsigned long now)
 
 void handleEOC(unsigned long now, int width)
 {
+  if (eocOrTempoOut) { // 1 = TEMPO
+    inEoc = false;
+    return;
+  }
+
   if (inEoc && now >= eocCounter + width) {
-#if !EOC_LED_IS_TEMPO
     digitalWrite(EOC_LED, LOW);
-#endif
     digitalWrite(EOC_STATE, HIGH);
     inEoc = false;
   }

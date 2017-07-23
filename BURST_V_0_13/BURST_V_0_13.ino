@@ -31,9 +31,6 @@
 #define BOUNCE_LOCK_OUT // use lock out method for better response
 #include <Bounce2.h>
 
-// SET TO 0 to revert to standard behavior (EOC LED shows EOC)
-#define EOC_LED_IS_TEMPO 1
-
 ///////////////// PIN DEFINITIONS
 
 ////// ANALOG INS
@@ -57,10 +54,12 @@
 
 ////// DIGITAL OUTS
 
-#define TEMPO_LED       0
+#define EOC_LED         0
+#define TEMPO_LED       0 // ALIAS
 #define OUT_LED         1
 #define OUT_STATE       7
 #define EOC_STATE       9
+#define TEMPO_STATE     9 // ALIAS
 
 const int ledPin[4] = { 12, 13, 10, 6 };
 
@@ -108,6 +107,9 @@ unsigned long eocCounter = 0;              /// a counter to turn off the eoc led
 int divisions;                            //// value of the time division or the time multiplier
 int divisions_Temp = 0;
 int divisionCounter = 0;
+
+unsigned long triggerButtonPressedTime = 0;
+byte eocOrTempoOut = 0; // 0 = EOC (default)
 
 ////// Repetitions
 
@@ -220,6 +222,7 @@ void setup()
   repetitions = constrain(repetitions, 1, MAX_REPETITIONS);
 
   disableFirstClock = EEPROM.read(5);
+  eocOrTempoOut = EEPROM.read(14);
 
   repetitions_Temp = repetitions;
   repetitionsOld = repetitions;
@@ -265,7 +268,7 @@ void loop()
   }
 
   calculateClock(currentTime); // we read the ping in and the encoder button to get : master clock, clock divided and timePortions
-  readTrigger(); // we read the trigger input and the trigger button to see if it is HIGH or LOW, if it is HIGH and it is the first time it is.
+  readTrigger(currentTime); // we read the trigger input and the trigger button to see if it is HIGH or LOW, if it is HIGH and it is the first time it is.
   readRepetitions(currentTime); // we read the number of repetitions in the encoder, we have to attend this process often to avoid missing encoder tics.
 
   readDivision(currentTime);
@@ -295,7 +298,5 @@ void loop()
     }
   }
 
-#if EOC_LED_IS_TEMPO
   handleTempo(currentTime);
-#endif
 }
