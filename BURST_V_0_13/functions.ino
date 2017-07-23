@@ -352,8 +352,9 @@ void readRepetitions(unsigned long now)
 void readRandom(unsigned long now)
 {
   int randomVal = analogRead(CV_PROBABILITY);
-  randomVal = mapCalibratedAnalogValue(randomVal, calibratedProbability, 50, 0, 100);
+  randomVal = mapCalibratedAnalogValue(randomVal, calibratedProbability, 10, 0, 20);
   // SERIAL_PRINTLN("randomPot %d", randomPot);
+  randomVal *= 5;
 
   if (randomVal != randomPot_Temp) {
     if (now >= ledQuantityTime + 350) {
