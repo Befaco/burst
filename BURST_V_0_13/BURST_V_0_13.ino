@@ -55,11 +55,9 @@
 ////// DIGITAL OUTS
 
 #define EOC_LED         0
-#define TEMPO_LED       0 // ALIAS
 #define OUT_LED         1
 #define OUT_STATE       7
 #define EOC_STATE       9
-#define TEMPO_STATE     9 // ALIAS
 
 const int ledPin[4] = { 12, 13, 10, 6 };
 
@@ -109,7 +107,6 @@ int divisions_Temp = 0;
 int divisionCounter = 0;
 
 unsigned long triggerButtonPressedTime = 0;
-byte eocOrTempoOut = 0; // 0 = EOC (default)
 
 ////// Repetitions
 
@@ -222,7 +219,6 @@ void setup()
   repetitions = constrain(repetitions, 1, MAX_REPETITIONS);
 
   disableFirstClock = EEPROM.read(5);
-  eocOrTempoOut = EEPROM.read(14);
 
   repetitions_Temp = repetitions;
   repetitionsOld = repetitions;
@@ -297,6 +293,5 @@ void loop()
       startBurstInit(currentTime);
     }
   }
-
   handleTempo(currentTime);
 }

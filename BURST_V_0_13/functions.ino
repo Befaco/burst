@@ -207,18 +207,12 @@ void calculateClock(unsigned long now)
     calcTimePortions();
   }
 
-  if (encoderButtonState == 3 && encoderLastTime && (now - encoderLastTime) > 5000) {
-    eocOrTempoOut = !eocOrTempoOut;
-    EEPROM.write(14, eocOrTempoOut);
-    doLedFlourish();
-    encoderLastTime = now;
 #if 0
-    // set master clock to 0, like the PEG
-    masterClock_Temp = 0;
-    encoderDuration = 0;
-    encoderLastTime = 0;
+  // set master clock to 0, like the PEG
+  masterClock_Temp = 0;
+  encoderDuration = 0;
+  encoderLastTime = 0;
 #endif
-  }
   if (encoderButtonState == 2) {
     bitWrite(encoderButtonState, 1, 0);
   }
@@ -530,7 +524,6 @@ void handleTempo(unsigned long now)
 {
   static bool inTempo = false;
 
-  if (!eocOrTempoOut) return; // 0 = EOC
   // using a different variable here (tempoTimer) to avoid side effects
   // when updating tempoTic. Now the tempoTimer is entirely independent
   // of the cycling, etc.
@@ -538,14 +531,18 @@ void handleTempo(unsigned long now)
   if ((now >= tempoTimer) && (now < tempoTimer + 30)) {
     if (!inTempo) {
       digitalWrite(TEMPO_LED, HIGH);
+#ifdef EOC_OUT_IS_TEMPO
       digitalWrite(TEMPO_STATE, LOW);
+#endif
       inTempo = true;
     }
     return;
   }
   else if (inTempo) {
     digitalWrite(TEMPO_LED, LOW);
+#ifdef EOC_OUT_IS_TEMPO
     digitalWrite(TEMPO_STATE, HIGH);
+#endif
     inTempo = false;
   }
 
@@ -557,19 +554,23 @@ void handleTempo(unsigned long now)
 
 void enableEOC(unsigned long now)
 {
-  if (eocOrTempoOut) { // 1 = TEMPO
-    inEoc = true;
-    wantsEoc = false;
-    return;
-  }
+#ifdef EOC_OUT_IS_TEMPO
+  inEoc = true;
+  wantsEoc = false;
+  return;
+#endif
 
   if (inEoc) {
     eocCounter = now;
     handleEOC(now, 0); // turn off the EOC if necessary
   }
   // turn it (back) on
-  digitalWrite(EOC_LED, HIGH);
+#ifndef EOC_OUT_IS_TEMPO
+#if 0
+  digitalWrite(EOC_LED, HIGH); // EOC_LED no longer in software
+#endif
   digitalWrite(EOC_STATE, LOW);
+#endif
   inEoc = true;
   wantsEoc = false;
   eocCounter = now;
@@ -577,14 +578,18 @@ void enableEOC(unsigned long now)
 
 void handleEOC(unsigned long now, int width)
 {
-  if (eocOrTempoOut) { // 1 = TEMPO
-    inEoc = false;
-    return;
-  }
+#ifdef EOC_OUT_IS_TEMPO
+  inEoc = false;
+  return;
+#endif
 
   if (inEoc && now >= eocCounter + width) {
-    digitalWrite(EOC_LED, LOW);
+#ifndef EOC_OUT_IS_TEMPO
+#if 0
+    digitalWrite(EOC_LED, LOW); // EOC_LED no longer in software
+#endif
     digitalWrite(EOC_STATE, HIGH);
+#endif
     inEoc = false;
   }
 }
