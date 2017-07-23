@@ -72,15 +72,20 @@ void checkCalibrationMode()
   }
 }
 
+#define ANALOG_MIN 20 // 0 + 20
+#define ANALOG_MAX 1003 // 1023 - 20
+
 int mapCalibratedAnalogValue(int val, int calibratedValue, int mappedValue, int start, int stop)
 {
   int calVal = calibratedValue - 5; // buffer of -5 from calibration
   int outVal;
+
+  val = constrain(val, ANALOG_MIN, ANALOG_MAX); // chop 20 off of both sides
   if (val <= calVal) {
-    outVal = map(val, 0, calVal + 1, start, mappedValue + (start > stop ? -1 : 1)); // 32 steps
+    outVal = map(val, ANALOG_MIN, calVal + 1, start, mappedValue + (start > stop ? -1 : 1)); // 32 steps
   }
   else {
-    outVal = map(val, calVal, 1024, mappedValue, stop + (start > stop ? -1 : 1));
+    outVal = map(val, calVal, ANALOG_MAX + 1, mappedValue, stop + (start > stop ? -1 : 1));
   }
   return outVal;
 }
