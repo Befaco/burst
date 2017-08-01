@@ -147,7 +147,7 @@ void calculateClock(unsigned long now)
       encoderLastTime = now;
 
       if (!ignore) {
-        tempoTic_Temp = now;
+        // tempoTic_Temp = now;
         encoderTaps[encoderTapsCurrent++] = duration;
         if (encoderTapsCurrent >= TAP_TEMPO_AVG_COUNT) {
           encoderTapsCurrent = 0;
@@ -196,7 +196,7 @@ void calculateClock(unsigned long now)
       pingLastTime = now;
 
       if (!ignore) {
-        tempoTic_Temp = now;
+        // tempoTic_Temp = now;
         masterClock_Temp = pingDuration;
         calcTimePortions();
       }
@@ -286,13 +286,13 @@ void startBurstInit(unsigned long now)
                                                  clockDivided,
                                                  0,
                                                  clockDivided,
-                                                 timePortions * repetitions,
+                                                 round(timePortions * repetitions),
                                                  distribution);
       elapsedTimeSincePrevRepetitionNew = fscale(0,
                                                  clockDivided,
                                                  0,
                                                  clockDivided,
-                                                 timePortions * (repetitions - 1),
+                                                 round(timePortions * (repetitions - 1)),
                                                  distribution);
       elapsedTimeSincePrevRepetition = elapsedTimeSincePrevRepetitionOld -
                                        elapsedTimeSincePrevRepetitionNew;
@@ -520,38 +520,6 @@ void handlePulseDown(unsigned long now)
   }
 }
 
-void handleTempo(unsigned long now)
-{
-  static bool inTempo = false;
-
-  // using a different variable here (tempoTimer) to avoid side effects
-  // when updating tempoTic. Now the tempoTimer is entirely independent
-  // of the cycling, etc.
-
-  if ((now >= tempoTimer) && (now < tempoTimer + 30)) {
-    if (!inTempo) {
-      digitalWrite(TEMPO_LED, HIGH);
-#ifdef EOC_OUT_IS_TEMPO
-      digitalWrite(TEMPO_STATE, LOW);
-#endif
-      inTempo = true;
-    }
-    return;
-  }
-  else if (inTempo) {
-    digitalWrite(TEMPO_LED, LOW);
-#ifdef EOC_OUT_IS_TEMPO
-    digitalWrite(TEMPO_STATE, HIGH);
-#endif
-    inTempo = false;
-  }
-
-  // only advance the tempo timer if we're not currently inTempo
-  while (tempoTimer + triggerDifference <= now) {
-    tempoTimer += masterClock;
-  }
-}
-
 void enableEOC(unsigned long now)
 {
 #ifdef EOC_OUT_IS_TEMPO
@@ -594,7 +562,7 @@ void handleEOC(unsigned long now, int width)
   }
 }
 
-void handlePulseUp(unsigned long now, bool inCycle)
+void handlePulseUp(unsigned long now)
 {
   int inputValue;
 
@@ -611,7 +579,7 @@ void handlePulseUp(unsigned long now, bool inCycle)
 
         switch (distributionSign) {
         case DISTRIBUTION_SIGN_POSITIVE:
-          inputValue = timePortions * (repetitionCounter + 1);
+          inputValue = round(timePortions * (repetitionCounter + 1));
           elapsedTimeSincePrevRepetitionOld = elapsedTimeSincePrevRepetitionNew;
           elapsedTimeSincePrevRepetitionNew = fscale(0,
                                                      clockDivided,
@@ -625,7 +593,7 @@ void handlePulseUp(unsigned long now, bool inCycle)
         case DISTRIBUTION_SIGN_NEGATIVE:
           elapsedTimeSincePrevRepetitionOld = elapsedTimeSincePrevRepetitionNew;
 
-          inputValue = timePortions * ((repetitions - 1) - repetitionCounter);
+          inputValue = round(timePortions * ((repetitions - 1) - repetitionCounter));
           if (!inputValue && divisions <= 0) {   // no EOC if we're dividing
             wantsEoc = true;   // we may not reach the else block below if the next trigger comes too quickly
           }
@@ -640,7 +608,7 @@ void handlePulseUp(unsigned long now, bool inCycle)
           break;
         case DISTRIBUTION_SIGN_ZERO:
           elapsedTimeSincePrevRepetitionOld = elapsedTimeSincePrevRepetitionNew;
-          elapsedTimeSincePrevRepetitionNew = timePortions * (repetitionCounter + 1);
+          elapsedTimeSincePrevRepetitionNew = round(timePortions * (repetitionCounter + 1));
           elapsedTimeSincePrevRepetition = elapsedTimeSincePrevRepetitionNew -
                                            elapsedTimeSincePrevRepetitionOld;
           break;
@@ -654,34 +622,70 @@ void handlePulseUp(unsigned long now, bool inCycle)
 
         readCycle();
 
-        if (inCycle) {
+        if (cycle) {
           recycle = true;
           divisionCounter++;
           if (divisions >= 0 || divisionCounter >= -(divisions)) {
             resync = true;
-            divisionCounter = 0;
+            divisionCounter = 0; // superstitious, this will also be reset in doResync()
           }
+        }
+        else {
+          wantsMoreBursts = LOW;
+          burstTimeStart = 0;
         }
       }
     }
   }
 }
 
+void handleTempo(unsigned long now)
+{
+  static unsigned long tempoStart = 0;
+
+  // using a different variable here (tempoTimer) to avoid side effects
+  // when updating tempoTic. Now the tempoTimer is entirely independent
+  // of the cycling, etc.
+
+  if (!tempoStart && (now >= tempoTimer) && (now < tempoTimer + 30)) {
+    digitalWrite(TEMPO_LED, HIGH);
+#ifdef EOC_OUT_IS_TEMPO
+    digitalWrite(TEMPO_STATE, LOW);
+#endif
+    tempoStart = now;
+  }
+  else if (tempoStart && (now - tempoStart) > 30) {
+    digitalWrite(TEMPO_LED, LOW);
+#ifdef EOC_OUT_IS_TEMPO
+    digitalWrite(TEMPO_STATE, HIGH);
+#endif
+    tempoStart = 0;
+  }
+
+  if (!tempoStart) { // only if we're outside of the pulse
+    while (now >= tempoTimer) {
+      tempoTimer += masterClock;
+    }
+  }
+}
+
 void doResync(unsigned long now)
 {
-  // we are at the start of a new burst
-
   // get the new value in advance of calctimeportions();
   divisions = divisions_Temp;
   calcTimePortions();
 
-  // try to mantain proportional difference between ping and trigger
-  // with external clock and cycle, and the clock changes
-  if (masterClock_Temp != masterClock) {
-    triggerDifference = (float)masterClock_Temp * triggerDifProportional;
-    masterClock = masterClock_Temp;
+  // don't advance the timer unless we've reached the next tick
+  // (could happen with manual trigger)
+  if (now >= tempoTic_Temp) {
+    tempoTic = tempoTic_Temp;
+    if (masterClock_Temp != masterClock) {
+      masterClock = masterClock_Temp;
+    }
+    tempoTic_Temp = tempoTic + masterClock;
   }
 
+  // update other params
   repetitions = repetitions_Temp;
   clockDivided = clockDivided_Temp;
   timePortions = timePortions_Temp;
@@ -689,14 +693,12 @@ void doResync(unsigned long now)
   distributionSign = distributionSign_Temp;
   randomPot = randomPot_Temp;
 
-  // ensure that the clock advances
-  while (tempoTic_Temp + triggerDifference <= now) {
-    tempoTic_Temp += masterClock;
-  }
-  tempoTic = tempoTimer = tempoTic_Temp;
-
   readCycle();
   resync = false;
+  divisionCounter = 0; // otherwise multiple manual bursts will screw up the division count
+
+  // time of first burst of a group of bursts
+  firstBurstTime = now;
 }
 
 void calcTimePortions()
@@ -712,5 +714,5 @@ void calcTimePortions()
   else if (divisions == 0) {
     clockDivided_Temp = masterClock_Temp;
   }
-  timePortions_Temp = clockDivided_Temp / repetitions_Temp;
+  timePortions_Temp = (float)clockDivided_Temp / (float)repetitions_Temp;
 }

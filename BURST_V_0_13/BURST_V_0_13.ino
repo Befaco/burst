@@ -79,10 +79,11 @@ unsigned long masterClock_Temp = 0;        /// we use the temp variables to avoi
 unsigned long clockDivided = 0;            /// the result of div/mult the master clock depending on the div/mult potentiometer/input
 unsigned long clockDivided_Temp = 0;            /// we use the temp variables to avoid the parameters change during a burst execution
 
-int timePortions = 0;                      /// the linear portions of time depending on clock divided and number of repetitions in the burst. if the distribution is linear this will give us the duration of every repetition.
+float timePortions = 0;                      /// the linear portions of time depending on clock divided and number of repetitions in the burst. if the distribution is linear this will give us the duration of every repetition.
 /// if it is not linear it will be used to calculate the distribution
-int timePortions_Temp = 0;                 /// we use the temp variables to avoid the parameters change during a burst execution
+float timePortions_Temp = 0;                 /// we use the temp variables to avoid the parameters change during a burst execution
 
+unsigned long firstBurstTime = 0;         /// the moment when the burst start
 unsigned long burstTimeStart = 0;         /// the moment when the burst start
 unsigned long burstTimeAccu = 0;          /// the accumulation of all repetitions times since the burst have started
 
@@ -139,9 +140,7 @@ byte distributionSign_Temp = DISTRIBUTION_SIGN_POSITIVE;
 //// Trigger
 uint8_t triggerButtonState = LOW;           /// the trigger button
 bool triggered = false;                        /// the result of both trigger button and trigger input
-long triggerDifference = 0;            /// the time difference between the trigger and the ping
 bool triggerFirstPressed = 0;
-float triggerDifProportional = 0;
 //// Cycle
 bool cycleSwitchState = 0;             /// the cycle switch
 bool cycleInState = 0;                 /// the cycle input
@@ -158,8 +157,8 @@ bool resync = false;      // resync = start a new burst, but ensure that we're c
 
 //// encoder button and tap tempo
 byte encoderButtonState = 0;
-unsigned long tempoTic = 0;                        /// everytime a pulse is received in ping input or the encoder button (tap) is pressed we store the time
-unsigned long tempoTic_Temp = 0;
+unsigned long tempoTic = 0;       // the PREVIOUS tempo tick
+unsigned long tempoTic_Temp = 0;  // the NEXT tempo tick
 unsigned long tempoTimer = 0;
 
 byte disableFirstClock = 0; // backward since we can't assume that there's anything saved on the EEPROM
@@ -245,19 +244,7 @@ void loop()
       repetitionsEncoder = repetitionsEncoder_Temp;
       EEPROM.write(4, repetitionsEncoder);
     }
-
-    triggerDifference = currentTime - tempoTic_Temp;       /// when we press the trigger button we define the phase difference between the external clock and our burst
-    while (triggerDifference < 0) {
-      triggerDifference += masterClock_Temp;
-    }
-    while (triggerDifference >= masterClock_Temp) {
-      triggerDifference -= masterClock_Temp;
-    }
-    triggerDifProportional = masterClock_Temp ? ((float)triggerDifference / (float)masterClock_Temp) : 0;
     triggered = triggerFirstPressed = LOW;
-#ifdef DEBUG
-    // printDouble(triggerDifProportional, 100);
-#endif
 
     doResync(currentTime);
     startBurstInit(currentTime);
@@ -276,21 +263,28 @@ void loop()
 
   // do this before cycle resync
   handlePulseDown(currentTime);
-  handlePulseUp(currentTime, cycle);
+  handlePulseUp(currentTime);
 
-  if (cycle == HIGH) { // CYCLE ON
-    if (recycle) {
-      // this means that we need to re-cycle
+  if (burstTimeStart && cycle == HIGH) { // CYCLE ON
+    if (recycle
+          // ensure that the current cycle is really over
+        && (currentTime >= (burstTimeStart + clockDivided))
+          // ensure that the total burst (incl mult) is really over
+        && (!resync || currentTime >= (firstBurstTime + masterClock)))
+    {
       if (resync) {
-        if (currentTime >= (tempoTic + masterClock + triggerDifference)) {
-          if (repetitionsEncoder != repetitionsEncoder_Temp) {
-            repetitionsEncoder = repetitionsEncoder_Temp;
-            EEPROM.write(4, repetitionsEncoder);
-          }
-          doResync(currentTime);
+        if (repetitionsEncoder != repetitionsEncoder_Temp) {
+          repetitionsEncoder = repetitionsEncoder_Temp;
+          EEPROM.write(4, repetitionsEncoder);
         }
+        doResync(currentTime);
       }
       startBurstInit(currentTime);
+    }
+  }
+  else if (!burstTimeStart || cycle == LOW) {
+    if (currentTime >= tempoTic_Temp) { // ensure that the timer advances
+      doResync(currentTime);
     }
   }
   handleTempo(currentTime);
