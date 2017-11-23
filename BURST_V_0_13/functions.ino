@@ -1,4 +1,5 @@
 #define TAP_TEMPO_AVG_COUNT (2)
+#define TRIGGER_LENGTH (10) // 10ms is a good length to be picked up by other modules
 
 unsigned long encoderLastTime = 0;
 unsigned long encoderTaps[TAP_TEMPO_AVG_COUNT] = {0,0};
@@ -512,7 +513,7 @@ void handleLEDs(unsigned long now)
 void handlePulseDown(unsigned long now)
 {
   if ((outputState == HIGH) && (burstStarted == HIGH)) {
-    if (now >= (burstTimeStart + burstTimeAccu + 2)) {
+    if (now >= (burstTimeStart + burstTimeAccu + TRIGGER_LENGTH)) {
       outputState = LOW;
       digitalWrite(OUT_STATE, HIGH);
       digitalWrite(OUT_LED, LOW);
@@ -647,14 +648,14 @@ void handleTempo(unsigned long now)
   // when updating tempoTic. Now the tempoTimer is entirely independent
   // of the cycling, etc.
 
-  if (!tempoStart && (now >= tempoTimer) && (now < tempoTimer + 30)) {
+  if (!tempoStart && (now >= tempoTimer) && (now < tempoTimer + TRIGGER_LENGTH)) {
     digitalWrite(TEMPO_LED, HIGH);
 #ifdef EOC_OUT_IS_TEMPO
     digitalWrite(TEMPO_STATE, LOW);
 #endif
     tempoStart = now;
   }
-  else if (tempoStart && (now - tempoStart) > 30) {
+  else if (tempoStart && (now - tempoStart) > TRIGGER_LENGTH) {
     digitalWrite(TEMPO_LED, LOW);
 #ifdef EOC_OUT_IS_TEMPO
     digitalWrite(TEMPO_STATE, HIGH);
