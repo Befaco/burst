@@ -327,7 +327,7 @@ void readDivision(unsigned long now)                                    //// rea
 
   if (abs(divisionsPot - divisionsPotPrev) > 5) {
     if (now >= ledQuantityTime + 350) {
-      byte bitDivisions = divisionsVal == 0 ? 0 : divisionsVal < 0 ? -(divisionsVal) : (16 - divisionsVal);
+      byte bitDivisions = divisionsVal == 0 ? 0 : divisionsVal < 0 ? -(divisionsVal) - 1 : (16 - divisionsVal) + 1;
       for (int i = 0; i < 4; i++) {
         digitalWrite(ledPin[i], bitRead(bitDivisions, i));
       }
