@@ -12,7 +12,6 @@ unsigned long pingDuration = 0;
 
 /// flags
 bool burstStarted = LOW; // if the burst is active or not
-bool wantsMoreBursts = HIGH;
 
 int calibratedRepetitions = 511;
 int calibratedDistribution = 511;
@@ -64,20 +63,27 @@ void checkCalibrationMode()
   int buttonDown = !bounce.read();
 
   if (digitalRead(ENCODER_BUTTON) == 0 && buttonDown) {
+    // SERIAL_PRINTLN("new calibration");
     doCalibration();
   }
   else {
+    // SERIAL_PRINTLN("reading stored calibrations");
+
     calibratedRepetitions = ((EEPROM.read(6) & 0xff) | ((EEPROM.read(7) << 8) & 0xff00));
-    if (!calibratedRepetitions) calibratedRepetitions = 511;
+    // SERIAL_PRINTLN("calibratedRepetitions: %d %04x", calibratedRepetitions, calibratedRepetitions);
+    if (!calibratedRepetitions || calibratedRepetitions == 0xFFFF) calibratedRepetitions = 511;
 
     calibratedDistribution = ((EEPROM.read(8) & 0xff) | ((EEPROM.read(9) << 8) & 0xff00));
-    if (!calibratedDistribution) calibratedDistribution = 511;
+    // SERIAL_PRINTLN("calibratedDistribution: %d %04x", calibratedDistribution, calibratedDistribution);
+    if (!calibratedDistribution || calibratedDistribution == 0xFFFF) calibratedDistribution = 511;
 
     calibratedDivisions = ((EEPROM.read(10) & 0xff) | ((EEPROM.read(11) << 8) & 0xff00));
-    if (!calibratedDivisions) calibratedDivisions = 511;
+    // SERIAL_PRINTLN("calibratedDivisions: %d %04x", calibratedDivisions, calibratedDivisions);
+    if (!calibratedDivisions || calibratedDivisions == 0xFFFF) calibratedDivisions = 511;
 
     calibratedProbability = ((EEPROM.read(12) & 0xff) | ((EEPROM.read(13) << 8) & 0xff00));
-    if (!calibratedProbability) calibratedProbability = 511;
+    // SERIAL_PRINTLN("calibratedProbability: %d %04x", calibratedProbability, calibratedProbability);
+    if (!calibratedProbability || calibratedProbability == 0xFFFF) calibratedProbability = 511;
   }
 }
 
@@ -523,23 +529,13 @@ void handlePulseDown(unsigned long now)
 
 void enableEOC(unsigned long now)
 {
-#ifdef EOC_OUT_IS_TEMPO
-  inEoc = true;
-  wantsEoc = false;
-  return;
-#endif
-
   if (inEoc) {
     eocCounter = now;
     handleEOC(now, 0); // turn off the EOC if necessary
   }
+
   // turn it (back) on
-#ifndef EOC_OUT_IS_TEMPO
-#if 0
-  digitalWrite(EOC_LED, HIGH); // EOC_LED no longer in software
-#endif
   digitalWrite(EOC_STATE, LOW);
-#endif
   inEoc = true;
   wantsEoc = false;
   eocCounter = now;
@@ -547,18 +543,8 @@ void enableEOC(unsigned long now)
 
 void handleEOC(unsigned long now, int width)
 {
-#ifdef EOC_OUT_IS_TEMPO
-  inEoc = false;
-  return;
-#endif
-
   if (inEoc && now >= eocCounter + width) {
-#ifndef EOC_OUT_IS_TEMPO
-#if 0
-    digitalWrite(EOC_LED, LOW); // EOC_LED no longer in software
-#endif
     digitalWrite(EOC_STATE, HIGH);
-#endif
     inEoc = false;
   }
 }
@@ -649,17 +635,11 @@ void handleTempo(unsigned long now)
   // of the cycling, etc.
 
   if (!tempoStart && (now >= tempoTimer) && (now < tempoTimer + TRIGGER_LENGTH)) {
-    digitalWrite(TEMPO_LED, HIGH);
-#ifdef EOC_OUT_IS_TEMPO
-    digitalWrite(TEMPO_STATE, LOW);
-#endif
+    digitalWrite(TEMPO_STATE, HIGH);
     tempoStart = now;
   }
   else if (tempoStart && (now - tempoStart) > TRIGGER_LENGTH) {
-    digitalWrite(TEMPO_LED, LOW);
-#ifdef EOC_OUT_IS_TEMPO
-    digitalWrite(TEMPO_STATE, HIGH);
-#endif
+    digitalWrite(TEMPO_STATE, LOW);
     tempoStart = 0;
   }
 

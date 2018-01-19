@@ -54,7 +54,7 @@
 
 ////// DIGITAL OUTS
 
-#define EOC_LED         0
+#define TEMPO_STATE     0
 #define OUT_LED         1
 #define OUT_STATE       7
 #define EOC_STATE       9
@@ -165,9 +165,11 @@ byte disableFirstClock = 0; // backward since we can't assume that there's anyth
 
 Bounce bounce;
 
+bool wantsMoreBursts = HIGH;
+
 void setup()
 {
-  //// remove to activate TEMPO_LED and OUT_LED
+  //// remove to activate TEMPO_STATE and OUT_LED
 #ifdef DEBUG
   Serial.begin(9600);
   Serial.println("HOLA");
@@ -190,9 +192,8 @@ void setup()
   pinMode (TRIGGER_BUTTON, INPUT_PULLUP);
   pinMode (ENCODER_BUTTON, INPUT_PULLUP);
 
-  pinMode (TEMPO_LED, OUTPUT);
+  pinMode (TEMPO_STATE, OUTPUT);
   pinMode (OUT_LED, OUTPUT);
-
   pinMode (OUT_STATE, OUTPUT);
   digitalWrite(OUT_STATE, HIGH);
 
@@ -247,6 +248,7 @@ void loop()
     triggered = triggerFirstPressed = LOW;
 
     doResync(currentTime);
+    wantsMoreBursts = HIGH;
     startBurstInit(currentTime);
   }
 
