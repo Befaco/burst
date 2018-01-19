@@ -635,11 +635,11 @@ void handleTempo(unsigned long now)
   // of the cycling, etc.
 
   if (!tempoStart && (now >= tempoTimer) && (now < tempoTimer + TRIGGER_LENGTH)) {
-    digitalWrite(TEMPO_STATE, HIGH);
+    digitalWrite(TEMPO_STATE, LOW);
     tempoStart = now;
   }
   else if (tempoStart && (now - tempoStart) > TRIGGER_LENGTH) {
-    digitalWrite(TEMPO_STATE, LOW);
+    digitalWrite(TEMPO_STATE, HIGH);
     tempoStart = 0;
   }
 
