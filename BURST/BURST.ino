@@ -22,7 +22,7 @@
    At high frequencies there is a gap at the end of the burst
  */
 
-///////////////// LIBRARYS
+///////////////// LIBRARIES
 
 #include "DebugUtils.h" // <- DEBUG define in here
 #include <ClickEncoder.h>
@@ -37,7 +37,7 @@
 
 #define CV_DIVISIONS    A0
 #define CV_PROBABILITY  A1
-#define CV_REPETITIONS     A2
+#define CV_REPETITIONS  A2
 #define CV_DISTRIBUTION A3
 
 ////// DIGITAL INS
@@ -47,8 +47,8 @@
 
 #define PING_STATE      2
 #define ENCODER_BUTTON  3
-#define ENCODER_1       4
-#define ENCODER_2       5
+#define ENCODER_1       5
+#define ENCODER_2       4
 #define TRIGGER_STATE   8
 #define TRIGGER_BUTTON  11
 
