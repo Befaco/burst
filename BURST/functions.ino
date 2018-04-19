@@ -403,8 +403,8 @@ void readDistribution(unsigned long now)
   // SERIAL_PRINTLN("distributionPot %d", distributionPot);
 
   float dist = distributionIndexArray[abs(distributionVal)];
-  byte distSign = (distributionVal > 0 ? DISTRIBUTION_SIGN_NEGATIVE :
-                      distributionVal < 0 ? DISTRIBUTION_SIGN_POSITIVE :
+  byte distSign = (distributionVal < 0 ? DISTRIBUTION_SIGN_NEGATIVE :
+                      distributionVal > 0 ? DISTRIBUTION_SIGN_POSITIVE :
                       DISTRIBUTION_SIGN_ZERO);
 
   if (abs(distributionPot - distributionPotPrev) > 5 || dist != distribution_Temp) {
