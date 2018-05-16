@@ -203,7 +203,7 @@ void calculateClock(unsigned long now)
       pingLastTime = now;
 
       if (!ignore) {
-        // tempoTic_Temp = now;
+        tempoTic_Temp = now;
         masterClock_Temp = pingDuration;
         calcTimePortions();
       }
