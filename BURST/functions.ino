@@ -331,10 +331,12 @@ void readDivision(unsigned long now)                                    //// rea
   if (abs(divisionsPot - divisionsPotPrev) > 5) {
     if (now >= ledQuantityTime + 350) {
       byte bitDivisions = divisionsVal == 0 ? 0 : divisionsVal < 0 ? -(divisionsVal) - 1 : (16 - divisionsVal) + 1;
-      for (int i = 0; i < 4; i++) {
-        digitalWrite(ledPin[i], bitRead(bitDivisions, i));
+      if (!burstTimeStart) {
+        for (int i = 0; i < 4; i++) {
+          digitalWrite(ledPin[i], bitRead(bitDivisions, i));
+        }
+        ledParameterTime = now;
       }
-      ledParameterTime = now;
     }
     divisions_Temp = divisionsVal;
     divisionsPotPrev = divisionsPot;
@@ -345,6 +347,8 @@ static int calibratedCVZero = 719;
 
 void readRepetitions(unsigned long now)
 {
+  bool encoderChanged = false;
+
   encoderValue += encoder->getValue();
   if (encoderValue != lastEncoderValue) {
     lastEncoderValue = encoderValue;
@@ -356,6 +360,7 @@ void readRepetitions(unsigned long now)
       encoderValue = 0;
       repetitionsEncoder_Temp--;
     }
+    encoderChanged = true;
   }
   if (repetitionsEncoder_Temp < 1) repetitionsEncoder_Temp = 1;
   // repetitionsEncoder_Temp = constrain(repetitionsEncoder_Temp, 1, MAX_REPETITIONS);
@@ -371,10 +376,14 @@ void readRepetitions(unsigned long now)
   repetitionsEncoder_Temp = constrain(repetitionsEncoder_Temp, 1, MAX_REPETITIONS);
 
   if (repetitions_Temp != repetitionsOld) {
-    for (int i = 0; i < 4; i++) {
-      digitalWrite(ledPin[i], bitRead(repetitions_Temp - 1, i));
+    if (encoderChanged || !burstTimeStart) {
+      for (int i = 0; i < 4; i++) {
+        digitalWrite(ledPin[i], bitRead(repetitions_Temp - 1, i));
+      }
+      if (encoderChanged) {
+        ledQuantityTime = now;
+      }
     }
-    ledQuantityTime = now;
     repetitionsOld = repetitions_Temp;
   }
 }
@@ -389,10 +398,12 @@ void readRandom(unsigned long now)
   if (randomVal != randomPot_Temp) {
     if (now >= ledQuantityTime + 350) {
       byte bitRandom = map(randomVal, 0, 100, 15, 0);
-      for (int i = 0; i < 4; i++) {
-        digitalWrite(ledPin[i], bitRead(bitRandom, i));
+      if (!burstTimeStart) {
+        for (int i = 0; i < 4; i++) {
+          digitalWrite(ledPin[i], bitRead(bitRandom, i));
+        }
+        ledParameterTime = now;
       }
-      ledParameterTime = now;
     }
     randomPot_Temp = randomVal;
   }
@@ -415,10 +426,12 @@ void readDistribution(unsigned long now)
       byte bitDistribution = (distributionVal < 0) ? -(distributionVal) :
                              (distributionVal > 0) ? (16 - distributionVal) : 0;
 
-      for (int i = 0; i < 4; i++) {
-        digitalWrite(ledPin[i], bitRead(bitDistribution, i));
+      if (!burstTimeStart) {
+        for (int i = 0; i < 4; i++) {
+          digitalWrite(ledPin[i], bitRead(bitDistribution, i));
+        }
+        ledParameterTime = now;
       }
-      ledParameterTime = now;
     }
 
     distribution_Temp = dist;
@@ -511,7 +524,7 @@ float mapfloat(float x, float inMin, float inMax, float outMin, float outMax)
 
 void handleLEDs(unsigned long now)
 {
-  if ((now >= ledQuantityTime + 350) && (now >= ledParameterTime + 750)) {
+  if ((now >= ledQuantityTime + 350)/* && (now >= ledParameterTime + 750)*/) {
     if (!wantsMoreBursts) return;
     for (int i = 0; i < 4; i++) {
       digitalWrite(ledPin[i], bitRead(burstStarted ? repetitionCounter : repetitions_Temp - 1, i));
