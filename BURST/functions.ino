@@ -254,6 +254,9 @@ void readTrigger(unsigned long now)
   if (triggered == LOW) {
     triggerFirstPressed = HIGH;
   }
+  else {
+    triggerTime = now;
+  }
 }
 
 void startBurstInit(unsigned long now)

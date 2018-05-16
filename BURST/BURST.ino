@@ -141,6 +141,7 @@ byte distributionSign_Temp = DISTRIBUTION_SIGN_POSITIVE;
 uint8_t triggerButtonState = LOW;           /// the trigger button
 bool triggered = false;                        /// the result of both trigger button and trigger input
 bool triggerFirstPressed = 0;
+unsigned long triggerTime = 0;
 //// Cycle
 bool cycleSwitchState = 0;             /// the cycle switch
 bool cycleInState = 0;                 /// the cycle input
@@ -235,7 +236,10 @@ void loop()
 {
   unsigned long currentTime = millis();
 
-  if ((triggered == HIGH) && (triggerFirstPressed == HIGH)) { ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
+  ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
+  if ((triggered == HIGH)
+      && (triggerFirstPressed == HIGH)) // wait 3ms before resyncing to ensure that digital modules have updated any CV values
+  {
     if (wantsEoc) {
       enableEOC(currentTime);
     }
@@ -246,10 +250,14 @@ void loop()
       EEPROM.write(4, repetitionsEncoder);
     }
     triggered = triggerFirstPressed = LOW;
+  }
 
-    doResync(currentTime);
+  // this will certainly break if the user tries to trigger faster than 2ms
+  if (triggerTime && currentTime >= triggerTime + 2) {
+    triggerTime = 0;
+    doResync(currentTime - 2);
     wantsMoreBursts = HIGH;
-    startBurstInit(currentTime);
+    startBurstInit(currentTime - 2);
   }
 
   calculateClock(currentTime); // we read the ping in and the encoder button to get : master clock, clock divided and timePortions
