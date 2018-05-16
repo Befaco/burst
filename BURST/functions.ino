@@ -220,9 +220,6 @@ void calculateClock(unsigned long now)
       bitWrite(pingInState, 1, 1);
     }
   }
-  else if ((triggered == HIGH)) {
-    calcTimePortions();
-  }
 
 #if 0
   // set master clock to 0, like the PEG
@@ -263,14 +260,17 @@ void readTrigger(unsigned long now)
 
   if (burstTimeStart && retriggerMode == NO_RETRIGGER) {
     triggered = LOW;
-    triggerFirstPressed = HIGH;
     triggerTime = 0;
     return;
   }
 
   triggered = !(triggerButtonState && triggerCvState);
+
   if (triggered == LOW) {
     triggerFirstPressed = HIGH;
+  }
+  else if (triggerFirstPressed == LOW) {
+    ; // don't update the trigger time, we're still pressed
   }
   else {
     triggerTime = now;

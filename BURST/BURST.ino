@@ -257,15 +257,15 @@ void loop()
       repetitionsEncoder = repetitionsEncoder_Temp;
       EEPROM.write(4, repetitionsEncoder);
     }
-    triggered = triggerFirstPressed = LOW;
+    triggerFirstPressed = LOW;
   }
 
-  // this will certainly break if the user tries to trigger faster than 2ms
-  if (triggerTime && currentTime >= triggerTime + 2) {
-    triggerTime = 0;
-    doResync(currentTime - 2);
+  // this will certainly break if the user tries to trigger faster than 3ms
+  if (triggerTime && currentTime >= triggerTime + 3) {
+    doResync(triggerTime);
     wantsMoreBursts = HIGH;
-    startBurstInit(currentTime - 2);
+    startBurstInit(triggerTime);
+    triggerTime = 0;
   }
 
   calculateClock(currentTime); // we read the ping in and the encoder button to get : master clock, clock divided and timePortions
