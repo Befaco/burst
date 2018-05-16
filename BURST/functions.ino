@@ -542,10 +542,11 @@ float mapfloat(float x, float inMin, float inMax, float outMin, float outMax)
 
 void handleLEDs(unsigned long now)
 {
-  if ((now >= ledQuantityTime + 350)/* && (now >= ledParameterTime + 750)*/) {
-    if (!wantsMoreBursts) return;
-    for (int i = 0; i < 4; i++) {
-      digitalWrite(ledPin[i], bitRead(burstStarted ? repetitionCounter : repetitions_Temp - 1, i));
+  if ((now >= ledQuantityTime + 350)) {
+    if (wantsMoreBursts || (now >= ledParameterTime + 750)) {
+      for (int i = 0; i < 4; i++) {
+        digitalWrite(ledPin[i], bitRead(burstStarted ? repetitionCounter : repetitions_Temp - 1, i));
+      }
     }
   }
 }
