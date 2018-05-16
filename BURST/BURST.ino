@@ -213,7 +213,7 @@ void setup()
   masterClock = (EEPROM.read(0) & 0xff) + (((long)EEPROM.read(1) << 8) & 0xff00) +
                 (((long)EEPROM.read(2) << 16) & 0xff0000) +
                 (((long)EEPROM.read(3) << 24) & 0xff000000);
-  if (masterClock < 1) masterClock = 1;
+  if (masterClock < 1) masterClock = 120;
   masterClock_Temp = masterClock;
 
   repetitions = EEPROM.read(4);
