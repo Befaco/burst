@@ -164,7 +164,7 @@ void calculateClock(unsigned long now)
       encoderLastTime = now;
 
       if (!ignore) {
-        // tempoTic_Temp = now;
+        tempoTic_Temp = now;
         encoderTaps[encoderTapsCurrent++] = duration;
         if (encoderTapsCurrent >= TAP_TEMPO_AVG_COUNT) {
           encoderTapsCurrent = 0;
@@ -679,6 +679,9 @@ void handleTempo(unsigned long now)
   }
 
   if (!tempoStart) { // only if we're outside of the pulse
+    if (now >= tempoTimer) {
+      tempoTimer = tempoTimer_Temp;
+    }
     while (now >= tempoTimer) {
       tempoTimer += masterClock;
     }
@@ -699,6 +702,7 @@ void doResync(unsigned long now)
       masterClock = masterClock_Temp;
     }
     tempoTic_Temp = tempoTic + masterClock;
+    tempoTimer_Temp = tempoTic_Temp;
   }
 
   // update other params

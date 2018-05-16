@@ -161,6 +161,7 @@ byte encoderButtonState = 0;
 unsigned long tempoTic = 0;       // the PREVIOUS tempo tick
 unsigned long tempoTic_Temp = 0;  // the NEXT tempo tick
 unsigned long tempoTimer = 0;
+unsigned long tempoTimer_Temp = 0;
 
 byte disableFirstClock = 0; // backward since we can't assume that there's anything saved on the EEPROM
 
