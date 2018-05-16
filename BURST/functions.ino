@@ -122,6 +122,16 @@ void calculateClock(unsigned long now)
     bitWrite(pingInState, 0, 0);
   }
 
+  if (encoderButtonState == 3 && (now - encoderLastTime > 5000)) { // held longer than 5s
+    retriggerMode = !retriggerMode;
+    EEPROM.write(14, retriggerMode);
+    doLedFlourish();
+    encoderTapsCurrent = 0;
+    encoderTapsTotal = 0;
+    encoderDuration = 0;
+    return;
+  }
+
   /// if ping or tap button have raised
   if ((encoderButtonState == 1) || (pingInState == 1)) {
     byte ignore = false;
@@ -250,6 +260,14 @@ void readTrigger(unsigned long now)
   }
 
   triggerButtonState = !buttonDown;
+
+  if (burstTimeStart && retriggerMode == NO_RETRIGGER) {
+    triggered = LOW;
+    triggerFirstPressed = HIGH;
+    triggerTime = 0;
+    return;
+  }
+
   triggered = !(triggerButtonState && triggerCvState);
   if (triggered == LOW) {
     triggerFirstPressed = HIGH;

@@ -164,6 +164,12 @@ unsigned long tempoTimer = 0;
 
 byte disableFirstClock = 0; // backward since we can't assume that there's anything saved on the EEPROM
 
+enum {
+  RETRIGGER = 0,
+  NO_RETRIGGER = 1
+};
+byte retriggerMode = RETRIGGER;
+
 Bounce bounce;
 
 bool wantsMoreBursts = HIGH;
@@ -227,6 +233,8 @@ void setup()
   repetitionsEncoder_Temp = repetitions;
 
   checkCalibrationMode();
+
+  retriggerMode = EEPROM.read(14);
 
   readDivision(0);
   calcTimePortions();
