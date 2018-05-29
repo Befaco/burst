@@ -141,7 +141,7 @@ byte distributionSign_Temp = DISTRIBUTION_SIGN_POSITIVE;
 uint8_t triggerButtonState = LOW;           /// the trigger button
 bool triggered = false;                        /// the result of both trigger button and trigger input
 bool triggerFirstPressed = 0;
-unsigned long triggerTime = 0;
+
 //// Cycle
 bool cycleSwitchState = 0;             /// the cycle switch
 bool cycleInState = 0;                 /// the cycle input
@@ -259,14 +259,10 @@ void loop()
       EEPROM.write(4, repetitionsEncoder);
     }
     triggerFirstPressed = LOW;
-  }
 
-  // this will certainly break if the user tries to trigger faster than 3ms
-  if (triggerTime && currentTime >= triggerTime + 3) {
-    doResync(triggerTime);
+    doResync(currentTime);
     wantsMoreBursts = HIGH;
-    startBurstInit(triggerTime);
-    triggerTime = 0;
+    startBurstInit(currentTime);
   }
 
   calculateClock(currentTime); // we read the ping in and the encoder button to get : master clock, clock divided and timePortions

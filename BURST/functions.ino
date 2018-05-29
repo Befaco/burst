@@ -260,7 +260,6 @@ void readTrigger(unsigned long now)
 
   if (burstTimeStart && retriggerMode == NO_RETRIGGER) {
     triggered = LOW;
-    triggerTime = 0;
     return;
   }
 
@@ -271,9 +270,6 @@ void readTrigger(unsigned long now)
   }
   else if (triggerFirstPressed == LOW) {
     ; // don't update the trigger time, we're still pressed
-  }
-  else {
-    triggerTime = now;
   }
 }
 
