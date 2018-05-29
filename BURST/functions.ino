@@ -153,8 +153,14 @@ void calculateClock(unsigned long now)
   }
 
   if (encoderButtonState == 3 && (now - encoderLastTime > 5000)) { // held longer than 5s
-    retriggerMode = !retriggerMode;
-    EEPROM.write(14, retriggerMode);
+    if ((now - triggerButtonPressedTime) > 5000) {
+      probabilityAffectsEOC = !probabilityAffectsEOC;
+      EEPROM.write(15, probabilityAffectsEOC);
+    }
+    else {
+      retriggerMode = !retriggerMode;
+      EEPROM.write(14, retriggerMode);
+    }
     doLedFlourish();
     encoderTapsCurrent = 0;
     encoderTapsTotal = 0;
@@ -274,13 +280,13 @@ void readTrigger(unsigned long now)
     if (triggerButtonState) { // it's a new press
       triggerButtonPressedTime = now;
     }
-    else if ((now - triggerButtonPressedTime) > 5000) {
-      // toggle initial ping output
-      disableFirstClock = !disableFirstClock;
-      EEPROM.write(5, disableFirstClock);
-      doLedFlourish();
-      triggerButtonPressedTime = now;
-    }
+    // else if ((now - triggerButtonPressedTime) > 5000) {
+    //   // toggle initial ping output
+    //   disableFirstClock = !disableFirstClock;
+    //   EEPROM.write(5, disableFirstClock);
+    //   doLedFlourish();
+    //   triggerButtonPressedTime = now;
+    // }
   }
   else {
     triggerButtonPressedTime = 0;
@@ -319,10 +325,11 @@ void startBurstInit(unsigned long now)
 
   int randomDif = randomPot - random(100);
   // trigger button overrides probability
-  wantsMoreBursts = (!triggerButtonState) ? HIGH : (randomDif <= 0) ? LOW : wantsMoreBursts;
+  silentBurst = (randomDif <= 0);
+  wantsMoreBursts = (!triggerButtonState) ? HIGH : (silentBurst) ? LOW : wantsMoreBursts;
 
-  digitalWrite(OUT_STATE, !(wantsMoreBursts | disableFirstClock));
-  digitalWrite(OUT_LED, (wantsMoreBursts | disableFirstClock));
+  digitalWrite(OUT_STATE, !(wantsMoreBursts /*| disableFirstClock*/));
+  digitalWrite(OUT_LED, (wantsMoreBursts /*| disableFirstClock*/));
 
   switch (distributionSign) {
   case DISTRIBUTION_SIGN_POSITIVE:
@@ -494,6 +501,7 @@ void readCycle()
 
   if (!cSwitchState && cycleSwitchState && buttonDown) {
     resetPhase = true;
+    doLedFlourish();
   }
   cycleSwitchState = cSwitchState;
 
@@ -603,11 +611,13 @@ void enableEOC(unsigned long now)
     handleEOC(now, 0); // turn off the EOC if necessary
   }
 
-  // turn it (back) on
-  digitalWrite(EOC_STATE, LOW);
-  inEoc = true;
+  if (!(silentBurst && probabilityAffectsEOC)) {
+    // turn it (back) on
+    digitalWrite(EOC_STATE, LOW);
+    inEoc = true;
+    eocCounter = now;
+  }
   wantsEoc = false;
-  eocCounter = now;
 }
 
 void handleEOC(unsigned long now, int width)
