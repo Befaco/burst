@@ -487,8 +487,16 @@ void readDistribution(unsigned long now)
 
 void readCycle()
 {
-  cycleSwitchState = digitalRead(CYCLE_SWITCH);
+  int buttonDown = !bounce.read();
+
+  int cSwitchState = digitalRead(CYCLE_SWITCH);
   cycleInState = digitalRead(CYCLE_STATE);
+
+  if (!cSwitchState && cycleSwitchState && buttonDown) {
+    resetPhase = true;
+  }
+  cycleSwitchState = cSwitchState;
+
   if (cycleSwitchState == HIGH) {
     cycle = !cycleInState;
   }

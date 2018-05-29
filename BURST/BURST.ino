@@ -146,6 +146,7 @@ bool triggerFirstPressed = 0;
 bool cycleSwitchState = 0;             /// the cycle switch
 bool cycleInState = 0;                 /// the cycle input
 bool cycle = 0;                          /// the result of both cycle switch and cycle input
+bool resetPhase = 0;
 
 /// ping
 byte pingInState = 0;
@@ -253,7 +254,9 @@ void loop()
   unsigned long currentTime = millis();
 
   ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
-  if ((triggered == HIGH) && (triggerFirstPressed == HIGH)) {
+  if ((triggered == HIGH && triggerFirstPressed == HIGH)
+    || (resetPhase == true && currentTime >= tempoTic_Temp))
+  {
     if (wantsEoc) {
       enableEOC(currentTime);
     }
@@ -268,6 +271,7 @@ void loop()
     doResync(currentTime);
     wantsMoreBursts = HIGH;
     startBurstInit(currentTime);
+    resetPhase = false;
   }
 
   calculateClock(currentTime); // we read the ping in and the encoder button to get : master clock, clock divided and timePortions
