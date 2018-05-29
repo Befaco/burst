@@ -233,9 +233,11 @@ void setup()
   repetitionsEncoder = repetitions;
   repetitionsEncoder_Temp = repetitions;
 
-  checkCalibrationMode();
-
   retriggerMode = EEPROM.read(14);
+
+  if (!checkCalibrationMode()) {
+    doLightShow();
+  }
 
   readDivision(0);
   calcTimePortions();

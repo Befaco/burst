@@ -31,6 +31,33 @@ void doLedFlourish()
   delay(20);
 }
 
+void doLightShow()
+{
+  int count = 0;
+  while (count < 3) {
+    int cur = 15;
+    while (cur >= 0) {
+      for (int i = 3; i >= 0; i--) {
+        digitalWrite(ledPin[i], bitRead(cur, i));
+        delay(2);
+      }
+      delay(10);
+      cur--;
+    }
+    cur = 0;
+    while (cur < 16) {
+      for (int i = 3; i >= 0; i--) {
+        digitalWrite(ledPin[i], bitRead(cur, i));
+        delay(2);
+      }
+      delay(10);
+      cur++;
+    }
+    delay(20);
+    count++;
+  }
+}
+
 void doCalibration()
 {
   calibratedRepetitions = analogRead(CV_REPETITIONS);
@@ -57,7 +84,7 @@ void doCalibration()
   }
 }
 
-void checkCalibrationMode()
+bool checkCalibrationMode()
 {
   bounce.update();
   int buttonDown = !bounce.read();
@@ -65,6 +92,7 @@ void checkCalibrationMode()
   if (digitalRead(ENCODER_BUTTON) == 0 && buttonDown) {
     // SERIAL_PRINTLN("new calibration");
     doCalibration();
+    return true;
   }
   else {
     // SERIAL_PRINTLN("reading stored calibrations");
@@ -85,6 +113,7 @@ void checkCalibrationMode()
     // SERIAL_PRINTLN("calibratedProbability: %d %04x", calibratedProbability, calibratedProbability);
     if (!calibratedProbability || calibratedProbability == 0xFFFF) calibratedProbability = 511;
   }
+  return false;
 }
 
 #define ANALOG_MIN 20 // 0 + 20
