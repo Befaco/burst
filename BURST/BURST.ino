@@ -239,6 +239,11 @@ void setup()
     doLightShow();
   }
 
+  readCycle();
+  if (cycle == HIGH) {
+    triggered = triggerFirstPressed = HIGH;
+  }
+
   readDivision(0);
   calcTimePortions();
 }
