@@ -246,9 +246,7 @@ void loop()
   unsigned long currentTime = millis();
 
   ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
-  if ((triggered == HIGH)
-      && (triggerFirstPressed == HIGH)) // wait 3ms before resyncing to ensure that digital modules have updated any CV values
-  {
+  if ((triggered == HIGH) && (triggerFirstPressed == HIGH)) {
     if (wantsEoc) {
       enableEOC(currentTime);
     }
