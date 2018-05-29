@@ -25,6 +25,7 @@
 ///////////////// LIBRARIES
 
 #include "DebugUtils.h" // <- DEBUG define in here
+// #define ENC_DECODER (1 << 2)
 #include <ClickEncoder.h>
 #include <EEPROM.h>
 #include <TimerOne.h>
@@ -187,7 +188,7 @@ void setup()
 #endif
 
   /// Encoder
-  encoder = new ClickEncoder(ENCODER_2, ENCODER_1, 3);
+  encoder = new ClickEncoder(ENCODER_2, ENCODER_1, ENCODER_BUTTON);
 
   Timer1.initialize(1000);
   Timer1.attachInterrupt(timerIsr);

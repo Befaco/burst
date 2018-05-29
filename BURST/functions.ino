@@ -406,14 +406,18 @@ void readRepetitions(unsigned long now)
     if (encoderValue >= 4) {
       encoderValue = 0;
       repetitionsEncoder_Temp++;
+      encoderChanged = true;
     }
     else if (encoderValue <= -4) {
       encoderValue = 0;
       repetitionsEncoder_Temp--;
+      encoderChanged = true;
     }
-    encoderChanged = true;
   }
   if (repetitionsEncoder_Temp < 1) repetitionsEncoder_Temp = 1;
+  if (repetitionsEncoder_Temp == 1 && encoderValue < 0) {
+    lastEncoderValue = encoderValue = 0; // reset to avoid weirdness around 0
+  }
   // repetitionsEncoder_Temp = constrain(repetitionsEncoder_Temp, 1, MAX_REPETITIONS);
   // SERIAL_PRINTLN("repEnc %d", repetitionsEncoder_Temp);
 
