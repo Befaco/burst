@@ -153,9 +153,10 @@ void calculateClock(unsigned long now)
   }
 
   if (encoderButtonState == 3 && (now - encoderLastTime > 5000)) { // held longer than 5s
-    if ((now - triggerButtonPressedTime) > 5000) {
+    if (triggerButtonPressedTime && (now - triggerButtonPressedTime > 5000)) {
       probabilityAffectsEOC = !probabilityAffectsEOC;
       EEPROM.write(15, probabilityAffectsEOC);
+      triggerButtonPressedTime = 0;
     }
     else {
       retriggerMode = !retriggerMode;
@@ -280,13 +281,13 @@ void readTrigger(unsigned long now)
     if (triggerButtonState) { // it's a new press
       triggerButtonPressedTime = now;
     }
-    // else if ((now - triggerButtonPressedTime) > 5000) {
-    //   // toggle initial ping output
-    //   disableFirstClock = !disableFirstClock;
-    //   EEPROM.write(5, disableFirstClock);
-    //   doLedFlourish();
-    //   triggerButtonPressedTime = now;
-    // }
+    else if (!encoderButtonState && triggerButtonPressedTime && (now - triggerButtonPressedTime > 5000)) {
+      // toggle initial ping output
+      disableFirstClock = !disableFirstClock;
+      EEPROM.write(5, disableFirstClock);
+      doLedFlourish();
+      triggerButtonPressedTime = 0;
+    }
   }
   else {
     triggerButtonPressedTime = 0;
@@ -328,8 +329,10 @@ void startBurstInit(unsigned long now)
   silentBurst = (randomDif <= 0);
   wantsMoreBursts = (!triggerButtonState) ? HIGH : (silentBurst) ? LOW : wantsMoreBursts;
 
-  digitalWrite(OUT_STATE, !(wantsMoreBursts /*| disableFirstClock*/));
-  digitalWrite(OUT_LED, (wantsMoreBursts /*| disableFirstClock*/));
+  byte onoff = wantsMoreBursts && !disableFirstClock;
+
+  digitalWrite(OUT_STATE, !onoff);
+  digitalWrite(OUT_LED, onoff);
 
   switch (distributionSign) {
   case DISTRIBUTION_SIGN_POSITIVE:
