@@ -143,6 +143,13 @@ uint8_t triggerButtonState = LOW;           /// the trigger button
 bool triggered = false;                        /// the result of both trigger button and trigger input
 bool triggerFirstPressed = 0;
 
+// #define DELAYED_TRIGGER // uncomment to enable delay from trigger time to actual burst start (for dig. modules where CV is updated after gate)
+
+#ifdef DELAYED_TRIGGER
+#define DELAYED_TRIGGER_MS (2)
+unsigned long triggerTime = 0;
+#endif
+
 //// Cycle
 bool cycleSwitchState = 0;             /// the cycle switch
 bool cycleInState = 0;                 /// the cycle input
@@ -272,11 +279,22 @@ void loop()
     }
     triggerFirstPressed = LOW;
 
+#ifndef DELAYED_TRIGGER
     doResync(currentTime);
     wantsMoreBursts = HIGH;
     startBurstInit(currentTime);
     resetPhase = false;
+#endif
   }
+
+#ifdef DELAYED_TRIGGER
+  if (triggerTime && currentTime >= triggerTime + DELAYED_TRIGGER_MS) { // 2ms delay by default
+    doResync(triggerTime);
+    wantsMoreBursts = HIGH;
+    startBurstInit(triggerTime);
+    triggerTime = 0;
+  }
+#endif
 
   calculateClock(currentTime); // we read the ping in and the encoder button to get : master clock, clock divided and timePortions
   readTrigger(currentTime); // we read the trigger input and the trigger button to see if it is HIGH or LOW, if it is HIGH and it is the first time it is.

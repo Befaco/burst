@@ -297,6 +297,9 @@ void readTrigger(unsigned long now)
 
   if (burstTimeStart && retriggerMode == NO_RETRIGGER) {
     triggered = LOW;
+#ifdef DELAYED_TRIGGER
+    triggerTime = 0;
+#endif
     return;
   }
 
@@ -308,6 +311,11 @@ void readTrigger(unsigned long now)
   else if (triggerFirstPressed == LOW) {
     ; // don't update the trigger time, we're still pressed
   }
+#ifdef DELAYED_TRIGGER
+  else {
+    triggerTime = now;
+  }
+#endif
 }
 
 void startBurstInit(unsigned long now)
