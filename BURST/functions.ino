@@ -19,17 +19,19 @@ int calibratedDistribution = 511;
 int calibratedDivisions = 511;
 int calibratedProbability = 511;
 
-void doLedFlourish()
+void doLedFlourish(int times)
 {
-  int cur = 0;
-  while (cur < 16) {
-    for (int i = 0; i < 4; i++) {
-      digitalWrite(ledPin[i], bitRead(cur, i));
+  while (times--) {
+    int cur = 0;
+    while (cur < 16) {
+      for (int i = 0; i < 4; i++) {
+        digitalWrite(ledPin[i], bitRead(cur, i));
+      }
+      cur++;
+      delay(10);
     }
-    cur++;
-    delay(10);
+    delay(20);
   }
-  delay(20);
 }
 
 void doLightShow()
@@ -78,11 +80,7 @@ void doCalibration()
   EEPROM.write(12, (calibratedProbability & 0xff));
   EEPROM.write(13, ((calibratedProbability >> 8) & 0xff));
 
-  int count = 0;
-  while (count < 3) {
-    doLedFlourish();
-    count++;
-  }
+  doLedFlourish(3);
 }
 
 bool checkCalibrationMode()
@@ -162,7 +160,7 @@ void calculateClock(unsigned long now)
       retriggerMode = !retriggerMode;
       EEPROM.write(14, retriggerMode);
     }
-    doLedFlourish();
+    doLedFlourish(2);
     encoderTapsCurrent = 0;
     encoderTapsTotal = 0;
     encoderDuration = 0;
@@ -285,7 +283,7 @@ void readTrigger(unsigned long now)
       // toggle initial ping output
       disableFirstClock = !disableFirstClock;
       EEPROM.write(5, disableFirstClock);
-      doLedFlourish();
+      doLedFlourish(2);
       triggerButtonPressedTime = 0;
     }
   }
@@ -516,7 +514,7 @@ void readCycle()
 
   if (!cSwitchState && cycleSwitchState && buttonDown) {
     resetPhase = true;
-    doLedFlourish();
+    doLedFlourish(2);
   }
   cycleSwitchState = cSwitchState;
 
