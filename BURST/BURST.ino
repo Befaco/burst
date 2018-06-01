@@ -153,8 +153,8 @@ unsigned long triggerTime = 0;
 //// Cycle
 bool cycleSwitchState = 0;             /// the cycle switch
 bool cycleInState = 0;                 /// the cycle input
-bool cycle = 0;                          /// the result of both cycle switch and cycle input
-bool resetPhase = 0;
+bool cycle = false;                    /// the result of both cycle switch and cycle input
+bool resetPhase = false;
 
 /// ping
 byte pingInState = 0;
@@ -263,6 +263,12 @@ void setup()
 void loop()
 {
   unsigned long currentTime = millis();
+
+  if (burstTimeStart && firstBurstTime && cycle == HIGH && currentTime >= (firstBurstTime + masterClock)) { // force resync + tempo adjustment
+    currentTime = firstBurstTime + masterClock; // spoof the current time so that we always remain in sync with the tempo
+    triggered = triggerFirstPressed = HIGH;
+    wantsEoc = true;
+  }
 
   ///// we read the values and pots and inputs, and store the time difference between ping clock and trigger
   if ((triggered == HIGH && triggerFirstPressed == HIGH)

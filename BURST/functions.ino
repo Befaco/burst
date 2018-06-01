@@ -293,15 +293,15 @@ void readTrigger(unsigned long now)
 
   triggerButtonState = !buttonDown;
 
-  if (burstTimeStart && retriggerMode == NO_RETRIGGER) {
+  triggered = !(triggerButtonState && triggerCvState);
+
+  if (triggered && burstTimeStart && retriggerMode == NO_RETRIGGER) {
     triggered = LOW;
 #ifdef DELAYED_TRIGGER
     triggerTime = 0;
 #endif
     return;
   }
-
-  triggered = !(triggerButtonState && triggerCvState);
 
   if (triggered == LOW) {
     triggerFirstPressed = HIGH;
@@ -712,6 +712,7 @@ void handlePulseUp(unsigned long now)
         else {
           wantsMoreBursts = LOW;
           burstTimeStart = 0;
+          firstBurstTime = 0;
         }
       }
     }
