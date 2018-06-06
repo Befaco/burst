@@ -150,20 +150,23 @@ void calculateClock(unsigned long now)
     bitWrite(pingInState, 0, 0);
   }
 
-  if (encoderButtonState == 3 && (now - encoderLastTime > 5000)) { // held longer than 5s
-    if (triggerButtonPressedTime && (now - triggerButtonPressedTime > 5000)) {
-      probabilityAffectsEOC = !probabilityAffectsEOC;
-      EEPROM.write(15, probabilityAffectsEOC);
-      triggerButtonPressedTime = 0;
+  if (encoderButtonState == 3) {
+    if (encoderLastTime && encoderButtonState == 3 && (now - encoderLastTime > 5000)) { // held longer than 5s
+      if (triggerButtonPressedTime && (now - triggerButtonPressedTime > 5000)) {
+        probabilityAffectsEOC = !probabilityAffectsEOC;
+        EEPROM.write(15, probabilityAffectsEOC);
+        triggerButtonPressedTime = 0;
+      }
+      else {
+        retriggerMode = !retriggerMode;
+        EEPROM.write(14, retriggerMode);
+      }
+      doLedFlourish(2);
+      encoderLastTime = 0;
+      encoderTapsCurrent = 0;
+      encoderTapsTotal = 0;
+      encoderDuration = 0;
     }
-    else {
-      retriggerMode = !retriggerMode;
-      EEPROM.write(14, retriggerMode);
-    }
-    doLedFlourish(2);
-    encoderTapsCurrent = 0;
-    encoderTapsTotal = 0;
-    encoderDuration = 0;
     return;
   }
 
