@@ -212,7 +212,10 @@ void setup()
   pinMode (ENCODER_BUTTON, INPUT_PULLUP);
 
   pinMode (TEMPO_STATE, OUTPUT);
+  digitalWrite (TEMPO_STATE, HIGH);
+
   pinMode (OUT_LED, OUTPUT);
+
   pinMode (OUT_STATE, OUTPUT);
   digitalWrite(OUT_STATE, HIGH);
 
