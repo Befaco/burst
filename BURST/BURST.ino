@@ -263,9 +263,10 @@ void setup()
 void loop()
 {
   unsigned long currentTime = millis();
+  unsigned long nextSyncPoint = firstBurstTime + ((divisions > 0) ? clockDivided : masterClock);
 
-  if (burstTimeStart && firstBurstTime && cycle == HIGH && currentTime >= (firstBurstTime + masterClock)) { // force resync + tempo adjustment
-    currentTime = firstBurstTime + masterClock; // spoof the current time so that we always remain in sync with the tempo
+  if (burstTimeStart && firstBurstTime && cycle == HIGH && currentTime >= nextSyncPoint) { // force resync + tempo adjustment
+    currentTime = nextSyncPoint; // spoof the current time so that we always remain in sync with the tempo
     triggered = triggerFirstPressed = HIGH;
     wantsEoc = true;
   }
