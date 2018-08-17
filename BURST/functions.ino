@@ -744,7 +744,14 @@ void handlePulseUp(unsigned long now)
 
 void handleTempo(unsigned long now)
 {
+  static bool tempoInitialized = false;
   static unsigned long tempoStart = 0;
+
+  if (!tempoInitialized) {
+    tempoTimer = now;
+    tempoTimer_Temp = now + masterClock;
+    tempoInitialized = true;
+  }
 
   // using a different variable here (tempoTimer) to avoid side effects
   // when updating tempoTic. Now the tempoTimer is entirely independent
@@ -778,7 +785,7 @@ void doResync(unsigned long now)
   // don't advance the timer unless we've reached the next tick
   // (could happen with manual trigger)
   if (now >= tempoTic_Temp) {
-    tempoTic = tempoTic_Temp;
+    tempoTic = tempoTic_Temp ? tempoTic_Temp : now;
     if (masterClock_Temp != masterClock) {
       masterClock = masterClock_Temp;
     }
