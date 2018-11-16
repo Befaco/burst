@@ -416,7 +416,6 @@ void readRepetitions(unsigned long now)
   int16_t encNewValue = encoder->getValue();
   if (repetitionsEncoder_Temp == 1) {
     if (encNewValue <= 0) {
-      encoder->setAccelerationEnabled(0); // ensure
       process = false; // ignore it
     }
     else {
@@ -444,11 +443,7 @@ void readRepetitions(unsigned long now)
 
   if (repetitionsEncoder_Temp < 1) repetitionsEncoder_Temp = 1;
   if (repetitionsEncoder_Temp == 1 && encoderValue < 0) {
-    encoder->setAccelerationEnabled(0);
     lastEncoderValue = encoderValue = 0; // reset to avoid weirdness around 0
-  }
-  else {
-    encoder->setAccelerationEnabled(1);
   }
   // repetitionsEncoder_Temp = constrain(repetitionsEncoder_Temp, 1, MAX_REPETITIONS);
   // SERIAL_PRINTLN("repEnc %d", repetitionsEncoder_Temp);

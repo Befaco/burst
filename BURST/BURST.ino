@@ -196,6 +196,7 @@ void setup()
 
   /// Encoder
   encoder = new ClickEncoder(ENCODER_2, ENCODER_1, ENCODER_BUTTON);
+  encoder->setAccelerationEnabled(0);
 
   Timer1.initialize(1000);
   Timer1.attachInterrupt(timerIsr);
