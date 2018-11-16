@@ -335,7 +335,7 @@ void startBurstInit(unsigned long now)
 
   int randomDif = randomPot - random(100);
   // trigger button overrides probability
-  silentBurst = (randomDif <= 0);
+  silentBurst = (!triggerButtonState) ? 0 : (randomDif <= 0);
   wantsMoreBursts = (!triggerButtonState) ? HIGH : (silentBurst) ? LOW : wantsMoreBursts;
 
   byte onoff = wantsMoreBursts && !disableFirstClock;
