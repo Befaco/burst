@@ -334,14 +334,16 @@ void startBurstInit(unsigned long now)
   outputState = HIGH;
 
   int randomDif = randomPot - random(100);
-  // trigger button overrides probability
-  silentBurst = (!triggerButtonState) ? 0 : (randomDif <= 0);
-  wantsMoreBursts = (!triggerButtonState) ? HIGH : (silentBurst) ? LOW : wantsMoreBursts;
+  bool triggerOverride = !triggerButtonState;
 
-  byte onoff = wantsMoreBursts && !disableFirstClock;
+  // trigger button overrides probability (unless disableFirstClock is enabled)
+  silentBurst = triggerOverride ? 0 : (randomDif <= 0);
+  wantsMoreBursts = triggerOverride ? HIGH : (silentBurst) ? LOW : wantsMoreBursts;
 
-  digitalWrite(OUT_STATE, !onoff);
-  digitalWrite(OUT_LED, onoff);
+  byte firstTriggerOut = !disableFirstClock;
+
+  digitalWrite(OUT_STATE, !firstTriggerOut);
+  digitalWrite(OUT_LED, firstTriggerOut);
 
   switch (distributionSign) {
   case DISTRIBUTION_SIGN_POSITIVE:
