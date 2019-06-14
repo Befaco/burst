@@ -1,8 +1,6 @@
 /************************************
-   BURST 0.13 - BEFACO
-   written by Eloi Flores - Winter Modular
-
-
+   BURST 1.1 - BEFACO
+   written by Eloi Flores and Jeremy Bernstein
 
    NOTES, KNOWN BUGS and IMPROVEMENTS :
 
