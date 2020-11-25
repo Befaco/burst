@@ -6,9 +6,9 @@ Find further information [here.](https://www.befaco.org/burst-2/)
 
 ## Dependencies:
 
-[ClickEncoder:](https://github.com/0xPIT/encoder/).
+[ClickEncoder:](https://github.com/0xPIT/encoder/)
 
-[TimerOne:](http://playground.arduino.cc/Code/Timer1).
+[TimerOne:](http://playground.arduino.cc/Code/Timer1) Also available in Library manager.
 
 [Bounce2:](https://github.com/thomasfredericks/Bounce2) Also available in Library manager.
 
